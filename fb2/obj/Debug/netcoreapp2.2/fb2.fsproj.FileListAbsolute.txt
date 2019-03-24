@@ -1,0 +1,10 @@
+C:\Dev\fb2\fb2\bin\Debug\netcoreapp2.2\fb2.deps.json
+C:\Dev\fb2\fb2\bin\Debug\netcoreapp2.2\fb2.runtimeconfig.json
+C:\Dev\fb2\fb2\bin\Debug\netcoreapp2.2\fb2.runtimeconfig.dev.json
+C:\Dev\fb2\fb2\bin\Debug\netcoreapp2.2\fb2.dll
+C:\Dev\fb2\fb2\bin\Debug\netcoreapp2.2\fb2.pdb
+C:\Dev\fb2\fb2\obj\Debug\netcoreapp2.2\fb2.AssemblyInfoInputs.cache
+C:\Dev\fb2\fb2\obj\Debug\netcoreapp2.2\fb2.AssemblyInfo.fs
+C:\Dev\fb2\fb2\obj\Debug\netcoreapp2.2\fb2.dll
+C:\Dev\fb2\fb2\obj\Debug\netcoreapp2.2\fb2.pdb
+C:\Dev\fb2\fb2\obj\Debug\netcoreapp2.2\fb2.fsprojAssemblyReference.cache
