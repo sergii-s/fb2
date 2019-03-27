@@ -618,7 +618,7 @@
       ]
     },
     "Microsoft.NETCore.DotNetAppHost/2.2.0": {
-      "sha512": "DrhaKInRKKvN6Ns2VNIlC7ZffLOp9THf8cO6X4fytPRJovJUbF49/zzx4WfgX9E44FMsw9hT8hrKiIqDSHvGvA==",
+      "sha512": "OK/H8p9Ig6mLMITjXJ4VOewrJg/TU+dAPHE4BdMWMv+8COzBehf7XF1+DofKkmqdHpO2cJoS5Sc9PEZ6PKCbsg==",
       "type": "package",
       "path": "microsoft.netcore.dotnetapphost/2.2.0",
       "files": [
@@ -632,7 +632,7 @@
       ]
     },
     "Microsoft.NETCore.DotNetHostPolicy/2.2.0": {
-      "sha512": "FJie7IoPZFaPgNDxhZGmDBQP/Bs5vPdfca/G2Wf9gd6LIvMYkZcibtmJwB4tcf4KXkaOYfIOo4Cl9sEPMsSzkw==",
+      "sha512": "5Xvh/3bDr6YAl6TKfeONvRDZ9QOmvVmzFzA0M6g8uubWdf5/o6qdVOqByFBT/fhjVb6okP0E5+v1oxh1Pk+c+w==",
       "type": "package",
       "path": "microsoft.netcore.dotnethostpolicy/2.2.0",
       "files": [
@@ -646,7 +646,7 @@
       ]
     },
     "Microsoft.NETCore.DotNetHostResolver/2.2.0": {
-      "sha512": "spDm3AJYmebthDNhzY17YLPtvbc+Y1lCLVeiIH1uLJ/hZaM+40pBiPefFR8J1u66Ndkqi8ipR2tEbqPnYnjRhw==",
+      "sha512": "Q3j3KC2ugqIVasf7pO4NRDEn7GysZX3ZH6fAHfbjrP8cYXY9cmHeFcbaniw36q8kFhsPt2EnRHzSsLBpbG6l2Q==",
       "type": "package",
       "path": "microsoft.netcore.dotnethostresolver/2.2.0",
       "files": [
@@ -671,6 +671,7 @@
         "lib/netstandard1.0/_._",
         "microsoft.netcore.platforms.2.2.0.nupkg.sha512",
         "microsoft.netcore.platforms.nuspec",
+        "paket-installmodel.cache",
         "runtime.json",
         "useSharedDesignerContext.txt",
         "version.txt"
@@ -693,11 +694,12 @@
       ]
     },
     "NETStandard.Library/2.0.3": {
-      "sha512": "pHJ6S9+76qUtXnN2iguQvhOy2kbBrq9kPGZbvNSauMUoI0f+BnwWIruKnEBex2RWq0E0awxWm1Ru7Taum8wmyQ==",
+      "sha512": "st47PosZSHrjECdjeIzZQbzivYBJFv6P2nv4cj2ypdI204DO+vZ7l5raGMiX4eXMJ53RfOIg+/s4DHVZ54Nu2A==",
       "type": "package",
       "path": "netstandard.library/2.0.3",
       "files": [
         ".nupkg.metadata",
+        ".signature.p7s",
         "LICENSE.TXT",
         "THIRD-PARTY-NOTICES.TXT",
         "build/netstandard2.0/NETStandard.Library.targets",
@@ -817,7 +819,8 @@
         "build/netstandard2.0/ref/netstandard.xml",
         "lib/netstandard1.0/_._",
         "netstandard.library.2.0.3.nupkg.sha512",
-        "netstandard.library.nuspec"
+        "netstandard.library.nuspec",
+        "paket-installmodel.cache"
       ]
     }
   },
@@ -829,30 +832,28 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Sergii\\.nuget\\packages\\": {},
-    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
+    "/home/sergii/.nuget/packages/": {},
+    "/usr/share/dotnet/sdk/NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Dev\\fb2\\fb2\\fb2.fsproj",
+      "projectUniqueName": "/home/sergii/dev/fb2/fb2/fb2.fsproj",
       "projectName": "fb2",
-      "projectPath": "C:\\Dev\\fb2\\fb2\\fb2.fsproj",
-      "packagesPath": "C:\\Users\\Sergii\\.nuget\\packages\\",
-      "outputPath": "C:\\Dev\\fb2\\fb2\\obj\\",
+      "projectPath": "/home/sergii/dev/fb2/fb2/fb2.fsproj",
+      "packagesPath": "/home/sergii/.nuget/packages/",
+      "outputPath": "/home/sergii/dev/fb2/fb2/obj/",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        "/usr/share/dotnet/sdk/NuGetFallbackFolder"
       ],
       "configFilePaths": [
-        "C:\\Users\\Sergii\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "/home/sergii/.config/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "netcoreapp2.2"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
