@@ -19,7 +19,7 @@ module Pathes =
         | Relative of RelativePath
 
     let toAbsolutePath relative =
-        Path.Combine(relative.RelativeFrom, relative.Path) |> Path.GetFullPath
+        Path.Combine(relative.RelativeFrom.Replace('\\', '/'), relative.Path.Replace('\\', '/')) |> Path.GetFullPath
 
 
 module ProcessHelper =
@@ -111,9 +111,21 @@ module FB2 =
         yield! project.ProjectReferences |> Seq.map (fun p -> structure.Projects.[p])
         yield! project.ProjectReferences |> Seq.collect (fun p -> structure.Projects.[p] |> getReferencedProjects structure)
     }
+    let rec getDependentProjects structure project = seq {
+        let dependentProjects =
+            structure.Projects
+            |> Seq.filter (fun p -> p.Value.ProjectReferences |> Array.contains project.ProjectPath)
+            |> Seq.map (fun p -> p.Value)
+        yield! dependentProjects
+        yield! dependentProjects |> Seq.collect (getDependentProjects structure)
+    }
     let rec getProjectWithReferencedProjects structure project = seq {
         yield project   
         yield! getReferencedProjects structure project
+    }
+    let rec getProjectWithDependentProjects structure project = seq {
+        yield project   
+        yield! getDependentProjects structure project
     }
     let getImpactedProjects structure files =
         let filesFullPathes = 
@@ -122,11 +134,11 @@ module FB2 =
             |> List.ofSeq
         let directImpactedProjects = seq {
             for p in structure.Projects do
-                if filesFullPathes |> Seq.exists (fun f -> f.StartsWith((p.Key |> Path.GetDirectoryName) + "\\")) then
+                if filesFullPathes |> Seq.exists (fun f -> f.StartsWith((p.Key |> Path.GetDirectoryName) + Path.DirectorySeparatorChar.ToString())) then
                     yield p.Value
         }
         directImpactedProjects 
-            |> Seq.collect (fun p -> p |> getProjectWithReferencedProjects structure)
+            |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
             |> Seq.distinct
             |> Array.ofSeq
 
@@ -134,12 +146,12 @@ module FB2 =
 module Git =
 
     let getCommits repo count = 
-        ProcessHelper.run "git.exe" (sprintf "log -%i --pretty=format:'%%h'" count) repo
+        ProcessHelper.run "git" (sprintf "log -%i --pretty=format:'%%h'" count) repo
             |> String.split "\n"
             |> Array.map (String.trim '\'')
 
     let getDiffFiles repo commit1 commit2 =
-        ProcessHelper.run "git.exe" (sprintf "diff --name-only %s %s" commit1 commit2) repo
+        ProcessHelper.run "git" (sprintf "diff --name-only %s %s" commit1 commit2) repo
             |> String.split "\n"
 
         
@@ -147,9 +159,9 @@ module Git =
 let main argv =
     printfn "Hello World from F#!"
     let projectStructure = 
-        "C:/Dev/antvoice" 
+        "/home/sergii/dev/antvoice" 
         |> FB2.readProjectStructure
-    let getLastCommits = Git.getCommits projectStructure.RootFolder 10 
+    let getLastCommits = Git.getCommits projectStructure.RootFolder 2 
     let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder (getLastCommits |> Array.head) (getLastCommits |> Array.last)
     let impactedProjects = modifiedFiles |> FB2.getImpactedProjects projectStructure |> Array.ofSeq
     0 // return an integer exit code
