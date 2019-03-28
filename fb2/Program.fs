@@ -142,6 +142,10 @@ module FB2 =
             |> Seq.distinct
             |> Array.ofSeq
 
+module View =
+    let create solution folder projects =
+        ProcessHelper.run "dotnet" (sprintf "new sln --name %s" solution) folder |> ignore
+        ProcessHelper.run "dotnet" (sprintf "sln %s.sln add %s" solution (projects |> String.concat " ")) folder |> ignore
 
 module Git =
 
@@ -164,4 +168,7 @@ let main argv =
     let getLastCommits = Git.getCommits projectStructure.RootFolder 2 
     let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder (getLastCommits |> Array.head) (getLastCommits |> Array.last)
     let impactedProjects = modifiedFiles |> FB2.getImpactedProjects projectStructure |> Array.ofSeq
+    impactedProjects
+        |> Seq.map (fun p -> p.ProjectPath)
+        |> View.create "test" projectStructure.RootFolder
     0 // return an integer exit code
