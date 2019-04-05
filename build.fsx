@@ -23,7 +23,7 @@ let artifacts = "./artifacts"
 let nugetSource = "https://api.nuget.org/v3/index.json"
 let nugetKey = ""
 
-let version = Environment.environVarOrDefault "BUILD_NUMBER" "0.1.3"
+let version = Environment.environVarOrDefault "BUILD_NUMBER" "0.1.6"
 let buildConfiguration = 
   if Environment.environVarOrDefault "BUILD_CONF" "Release" = "Release"
     then 
@@ -78,9 +78,13 @@ Target.create "Nuget-package" (fun _ ->
             })
 )
 
+Target.create "Nuget-publish-local" (fun _ ->
+  DotNet.exec id "nuget" (sprintf "push %s/*.nupkg -s %s" artifacts "/home/sergii/dev/packages/")
+    |> ignore
+)
+
 Target.create "Nuget-publish" (fun _ ->
-  //nuget add ./artifacts/IncrementalBuild.0.1.2.nupkg -source /home/sergii/dev/packages/
-  DotNet.exec id "nuget" (sprintf "push %s/*.nupkg -k %s -s %s" artifacts nugetKey nugetSource) 
+  DotNet.exec id "nuget" (sprintf "push %s/*.nupkg -k %s -s %s" artifacts nugetKey nugetSource)
     |> ignore
 )
 
@@ -101,5 +105,8 @@ open Fake.Core.TargetOperators
   ==> "Nuget-package"
   ==> "Nuget-publish"
 
+"Nuget-package"
+  ==> "Nuget-publish-local"
+  
 // *** Start Build ***
 Target.runOrDefault "Default"

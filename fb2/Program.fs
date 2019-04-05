@@ -220,6 +220,8 @@ module FB2 =
     }
     
     type IncrementalBuildInfo = {
+        Id : string
+        DiffId : string option
         ProjectStructure : ProjectStructure
         ImpactedProjects : Project array
         NotImpactedProjects : Project array
@@ -235,7 +237,18 @@ module FB2 =
             | Release -> "Release"
             | Debug -> "Debug"
         projects
-        |> Seq.map (fun p -> sprintf "%s/bin/%s/%s/%s.dll" p.ProjectFolder conf p.TargetFramework p.AssemblyName)    
+        |> Seq.map (fun p -> sprintf "%s/bin/%s/%s/%s.dll" p.ProjectFolder conf p.TargetFramework p.AssemblyName)
+        
+    let getAssembliesTest configuration projects =
+        let conf =
+            match configuration with
+            | Release -> "Release"
+            | Debug -> "Debug"
+        projects
+        |> Seq.collect (fun p -> [
+            sprintf "%s/bin/%s/%s/*.*" p.ProjectFolder conf p.TargetFramework
+            sprintf "%s/obj/%s/%s/*.*" p.ProjectFolder conf p.TargetFramework
+        ])    
     
     let getIncrementalBuildStatus parametersFactory =
         let parameters = defaultBuilder |> parametersFactory
@@ -244,6 +257,7 @@ module FB2 =
             parameters.Repository 
             |> Graph.readProjectStructure
         let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck
+        let currentCommitId = commitIds |> Array.head
         
         let lastSnapshotCommit =
             match parameters.SnaphotStorage with
@@ -252,8 +266,7 @@ module FB2 =
         
         match lastSnapshotCommit with
         | Some commitId ->
-            
-            let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder (commitIds |> Array.head) (commitIds |> Array.last)
+            let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId commitId
             let impactedProjects = modifiedFiles |> Graph.getImpactedProjects projectStructure |> Array.ofSeq
             let notImpactedProjects = projectStructure.Projects
                                        |> Map.toArray
@@ -261,6 +274,8 @@ module FB2 =
                                        |> Array.except impactedProjects
             printfn "Last snapshot %s. Build %i of %i projects" commitId impactedProjects.Length notImpactedProjects.Length
             {
+                 Id = currentCommitId
+                 DiffId = Some commitId
                  ProjectStructure = projectStructure
                  ImpactedProjects = impactedProjects
                  NotImpactedProjects = notImpactedProjects
@@ -268,6 +283,8 @@ module FB2 =
         | None ->
             printfn "Last snapshot is not found. Full build should be done"
             {
+                 Id = currentCommitId
+                 DiffId = None
                  ProjectStructure = projectStructure
                  ImpactedProjects = projectStructure.Projects
                                        |> Map.toArray
