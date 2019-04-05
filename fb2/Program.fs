@@ -1,9 +1,11 @@
-﻿module String =
+﻿namespace IncrementalBuild
+
+module String =
     open System
     let toLowerInvariant (s : string) =
         s.ToLowerInvariant()
     let split (splitWith : string) (s : string) =
-        s.Split(splitWith, StringSplitOptions.RemoveEmptyEntries)
+        s.Split([|splitWith|], StringSplitOptions.RemoveEmptyEntries)
     let trim (trimChar : char) (s : string) =
         s.Trim(trimChar)
 
@@ -17,7 +19,9 @@ module Pathes =
     type FilePath =
         | Absolute of string
         | Relative of RelativePath
-
+    let safeDelete file = if file |> File.Exists then file |> File.Delete 
+    let combine p1 p2 =
+        Path.Combine(p1, p2)
     let toAbsolutePath relative =
         Path.Combine(relative.RelativeFrom.Replace('\\', '/'), relative.Path.Replace('\\', '/')) |> Path.GetFullPath
 
@@ -38,18 +42,21 @@ module ProcessHelper =
         proc.StandardOutput.ReadToEnd()
         
 
-module FB2 =
+module Graph =
     open Pathes
     open FSharp.Data
     open System.IO
     
-    type CsFsProject = XmlProvider<"csproj.xml", SampleIsList= true>
+    type CsFsProject = XmlProvider<"csproj.xml", SampleIsList= true, EmbeddedResource="IncrementalBuild, csproj.xml">
     type OutputType = Exe | Lib
     type Project = {
         Name : string
+        AssemblyName : string
         OutputType : OutputType
         ProjectPath : string
+        ProjectFolder : string
         ProjectReferences : string array
+        TargetFramework : string
     }
 
     type ProjectStructure = {
@@ -82,10 +89,14 @@ module FB2 =
                 |> Seq.map (fun x -> { Path = x.Include; RelativeFrom = projectFile |> Path.GetDirectoryName})
                 |> Seq.map toAbsolutePath
                 |> Array.ofSeq
-            {   Name = projectFile |> Path.GetFileNameWithoutExtension
+            let projectName = projectFile |> Path.GetFileNameWithoutExtension
+            {   Name = projectName
+                AssemblyName = project.PropertyGroups |> Array.tryPick (fun x -> x.AssemblyName) |> Option.defaultValue projectName
                 OutputType = outputType
                 ProjectPath = projectFile
+                ProjectFolder = projectFile |> Path.GetDirectoryName
                 ProjectReferences = projectReferences
+                TargetFramework = ( project.PropertyGroups |> Array.head ).TargetFramework
             } |> Some
         with
         | e -> printfn "WARNING: failed to parse %s project file" projectFile; None
@@ -97,16 +108,25 @@ module FB2 =
             |> Seq.choose parseProjectFile
             |> Seq.map (fun p -> p.ProjectPath, p)
             |> Map.ofSeq
-        let validProjects = 
+        let invalidProjects =
             projects
             |> Map.filter (fun _ project -> 
                                 project.ProjectReferences 
-                                |> Array.forall (fun dep -> projects |> Map.containsKey dep) 
+                                |> Array.exists (fun dep -> projects |> Map.containsKey dep |> not) 
                            )
+            
+        invalidProjects
+            |> Map.iter ( fun projectFile project -> printfn "WARNING: broken dependencies in %s project file. Ignoring project" projectFile)
+            
+        let validProjects = 
+            projects
+            |> Map.filter (fun projectFile project -> invalidProjects |> Map.containsKey projectFile |> not)
+            
         {
             Projects = validProjects
             RootFolder = dir
         }
+        
     let rec getReferencedProjects structure project = seq {
         yield! project.ProjectReferences |> Seq.map (fun p -> structure.Projects.[p])
         yield! project.ProjectReferences |> Seq.collect (fun p -> structure.Projects.[p] |> getReferencedProjects structure)
@@ -143,7 +163,13 @@ module FB2 =
             |> Array.ofSeq
 
 module View =
+    
     let create solution folder projects =
+        solution
+            |> sprintf "%s.sln"
+            |> Pathes.combine folder
+            |> Pathes.safeDelete 
+         
         ProcessHelper.run "dotnet" (sprintf "new sln --name %s" solution) folder |> ignore
         ProcessHelper.run "dotnet" (sprintf "sln %s.sln add %s" solution (projects |> String.concat " ")) folder |> ignore
 
@@ -158,17 +184,94 @@ module Git =
         ProcessHelper.run "git" (sprintf "diff --name-only %s %s" commit1 commit2) repo
             |> String.split "\n"
 
+module FileSystemSnapshotStorage =
+    open System.IO
+    
+    let firstAvailableSnapshot path commitIds =
+        let snapshots =
+            Directory.EnumerateFiles(path, "*.zip")
+            |> Seq.map Path.GetFileNameWithoutExtension
+            |> Set.ofSeq
+        commitIds |> Array.tryFind (fun commit -> snapshots.Contains commit)
         
-[<EntryPoint>]
-let main argv =
-    printfn "Hello World from F#!"
-    let projectStructure = 
-        "/home/sergii/dev/antvoice" 
-        |> FB2.readProjectStructure
-    let getLastCommits = Git.getCommits projectStructure.RootFolder 2 
-    let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder (getLastCommits |> Array.head) (getLastCommits |> Array.last)
-    let impactedProjects = modifiedFiles |> FB2.getImpactedProjects projectStructure |> Array.ofSeq
-    impactedProjects
-        |> Seq.map (fun p -> p.ProjectPath)
-        |> View.create "test" projectStructure.RootFolder
-    0 // return an integer exit code
+module FB2 =
+
+    open Graph
+    
+    type SourceControlProvider =
+        | Git
+
+    type SnaphotStorage =
+        | FileSystem of string
+        | GoogleCloudStorage
+        
+    type Builder = {
+        Repository : string
+        SourceControlProvider : SourceControlProvider
+        SnaphotStorage : SnaphotStorage
+        MaxCommitsCheck : int
+    }
+    
+    let private defaultBuilder = {
+        Repository = "."
+        SourceControlProvider = SourceControlProvider.Git
+        SnaphotStorage = SnaphotStorage.FileSystem "/tmp/snapshots"
+        MaxCommitsCheck = 20
+    }
+    
+    type IncrementalBuildInfo = {
+        ProjectStructure : ProjectStructure
+        ImpactedProjects : Project array
+        NotImpactedProjects : Project array
+    }
+    
+    type BuildConfiguration =
+        | Release
+        | Debug
+    
+    let getAssemblies configuration projects =
+        let conf =
+            match configuration with
+            | Release -> "Release"
+            | Debug -> "Debug"
+        projects
+        |> Seq.map (fun p -> sprintf "%s/bin/%s/%s/%s.dll" p.ProjectFolder conf p.TargetFramework p.AssemblyName)    
+    
+    let getIncrementalBuildStatus parametersFactory =
+        let parameters = defaultBuilder |> parametersFactory
+            
+        let projectStructure = 
+            parameters.Repository 
+            |> Graph.readProjectStructure
+        let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck
+        
+        let lastSnapshotCommit =
+            match parameters.SnaphotStorage with
+            | FileSystem path ->  commitIds |> FileSystemSnapshotStorage.firstAvailableSnapshot path 
+            | GoogleCloudStorage -> failwith "not implemented"
+        
+        match lastSnapshotCommit with
+        | Some commitId ->
+            
+            let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder (commitIds |> Array.head) (commitIds |> Array.last)
+            let impactedProjects = modifiedFiles |> Graph.getImpactedProjects projectStructure |> Array.ofSeq
+            let notImpactedProjects = projectStructure.Projects
+                                       |> Map.toArray
+                                       |> Array.map snd
+                                       |> Array.except impactedProjects
+            printfn "Last snapshot %s. Build %i of %i projects" commitId impactedProjects.Length notImpactedProjects.Length
+            {
+                 ProjectStructure = projectStructure
+                 ImpactedProjects = impactedProjects
+                 NotImpactedProjects = notImpactedProjects
+            }
+        | None ->
+            printfn "Last snapshot is not found. Full build should be done"
+            {
+                 ProjectStructure = projectStructure
+                 ImpactedProjects = projectStructure.Projects
+                                       |> Map.toArray
+                                       |> Array.map snd
+                 NotImpactedProjects = [||]
+            }
+
