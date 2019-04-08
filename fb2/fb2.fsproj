@@ -8,10 +8,15 @@
 
   <ItemGroup>
     <EmbeddedResource Include="csproj.xml" />
-    <Compile Include="Program.fs" />
+    <Compile Include="CommonExtensions.fs" />
+    <Compile Include="ProcessHelper.fs" />
+    <Compile Include="Pathes.fs" />
+    <Compile Include="Zip.fs" />
+    <Compile Include="SourceControl\Git.fs" />
+    <Compile Include="Storage\FileSystemSnapshotStorage.fs" />
+    <Compile Include="Graph.fs" />
+    <Compile Include="FB2.fs" />
   </ItemGroup>
-
-  <ItemGroup />
 
   <ItemGroup>
     <PackageReference Include="FSharp.Data" Version="3.0.1" />
