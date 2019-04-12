@@ -8,7 +8,7 @@ type SourceControlProvider =
 
 type SnaphotStorage =
     | FileSystem of string
-    | GoogleCloudStorage
+    | GoogleCloudStorage of string
         
 type BuildParameters = {
     Repository : string
@@ -34,23 +34,28 @@ module SnapshotStorage =
     let findSnapshot storage = 
         match storage with 
         | FileSystem path -> FileSystemSnapshotStorage.firstAvailableSnapshot path
-        | GoogleCloudStorage -> failwith "notimplemented"
+        | GoogleCloudStorage bucket -> GCSSnapshotStorage.firstAvailableSnapshot bucket
     let getSnapshot storage =
         match storage with 
         | FileSystem path -> FileSystemSnapshotStorage.getSnapshot path
-        | GoogleCloudStorage -> failwith "notimplemented"
+        | GoogleCloudStorage bucket -> GCSSnapshotStorage.getSnapshot bucket
     let saveSnapshot storage =
         match storage with 
         | FileSystem path -> FileSystemSnapshotStorage.saveSnapshot path
-        | GoogleCloudStorage -> failwith "notimplemented"
+        | GoogleCloudStorage bucket -> GCSSnapshotStorage.saveSnapshot bucket
 
     
 module FB2 =
+    open System
     
     let private defaultBuilder = {
         Repository = "."
         SourceControlProvider = SourceControlProvider.Git
-        Storage = SnaphotStorage.FileSystem "/tmp/snapshots"
+        Storage =
+            Environment.SpecialFolder.Personal
+            |> Environment.GetFolderPath
+            |> sprintf "%s/.fb2"
+            |> SnaphotStorage.FileSystem 
         MaxCommitsCheck = 20
     }
 
@@ -71,9 +76,11 @@ module FB2 =
         |> SnapshotStorage.saveSnapshot build.Parameters.Storage
 
     let restoreSnapshot build =
-        let snapshotId = build.DiffId.Value
-        let snapshotFile = snapshotId |> SnapshotStorage.getSnapshot build.Parameters.Storage
-        snapshotFile |> Zip.unzip build.ProjectStructure.RootFolder
+        match build.DiffId with
+        | Some snapshotId -> 
+            let snapshotFile = snapshotId |> SnapshotStorage.getSnapshot build.Parameters.Storage
+            snapshotFile |> Zip.unzip build.ProjectStructure.RootFolder
+        | None -> printfn "Last build not found. Nothing to restore"
     
     let getIncrementalBuild parametersBuilder =
         let parameters = defaultBuilder |> parametersBuilder

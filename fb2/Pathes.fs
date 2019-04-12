@@ -15,5 +15,3 @@ module Pathes =
         Path.Combine(p1, p2)
     let toAbsolutePath relative =
         Path.Combine(relative.RelativeFrom.Replace('\\', '/'), relative.Path.Replace('\\', '/')) |> Path.GetFullPath
-    let toRelativePath relativeFrom absolutePath =
-        Uri(absolutePath).MakeRelativeUri(Uri(relativeFrom)).ToString()

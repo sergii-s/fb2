@@ -84,7 +84,7 @@ module Graph =
             
         {
             Projects = validProjects
-            RootFolder = dir
+            RootFolder = dir |> Path.GetFullPath
         }
         
     let rec getReferencedProjects structure project = seq {

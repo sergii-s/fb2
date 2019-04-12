@@ -14,12 +14,14 @@
     <Compile Include="Zip.fs" />
     <Compile Include="SourceControl\Git.fs" />
     <Compile Include="Storage\FileSystemSnapshotStorage.fs" />
+    <Compile Include="Storage\GCSSnapshotStorage.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="FB2.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="FSharp.Data" Version="3.0.1" />
+    <PackageReference Include="Google.Cloud.Storage.V1" Version="2.3.0" />
   </ItemGroup>
 
 </Project>
