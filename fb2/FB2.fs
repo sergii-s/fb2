@@ -1,6 +1,6 @@
 ﻿namespace IncrementalBuild
 open System.IO
-
+open FSharp.Data
 open Graph
 
 type SourceControlProvider =
@@ -25,10 +25,22 @@ type IncrementalBuildInfo = {
     NotImpactedProjects : Project array
     Parameters : BuildParameters
 }
+
+type ApplicationType =
+    | Project of string
+    | Folder of string
+
+type Application  = {
+    Application : ApplicationType
+    Publish : Graph.Project -> unit
+    Deploy : Graph.Project -> unit
+}
     
 type BuildConfiguration =
     | Release
     | Debug
+
+type SnaphotDescription = JsonProvider<""" { "apps" : [{ "app":"bidder", "snapshot":"sjg8sjen" }] }""">
 
 module SnapshotStorage =
     let findSnapshot storage = 
@@ -48,7 +60,7 @@ module SnapshotStorage =
 module FB2 =
     open System
     
-    let private defaultBuilder = {
+    let private defaultParameters = {
         Repository = "."
         SourceControlProvider = SourceControlProvider.Git
         Storage =
@@ -82,8 +94,8 @@ module FB2 =
             snapshotFile |> Zip.unzip build.ProjectStructure.RootFolder
         | None -> printfn "Last build not found. Nothing to restore"
     
-    let getIncrementalBuild parametersBuilder =
-        let parameters = defaultBuilder |> parametersBuilder
+    let getIncrementalBuild parametersBuilder applications =
+        let parameters = defaultParameters |> parametersBuilder
             
         let projectStructure = 
             parameters.Repository 

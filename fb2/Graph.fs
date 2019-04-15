@@ -1,27 +1,36 @@
 ﻿namespace IncrementalBuild
 open System.IO
 
+type OutputType = Exe | Lib
+    
+type DotnetProject = {
+    Name : string
+    AssemblyName : string
+    OutputType : OutputType
+    ProjectPath : string
+    ProjectFolder : string
+    ProjectReferences : string array
+    TargetFramework : string
+}
+type CustomProject = {
+    Name : string
+    ProjectFolder : string
+}
+type Project =
+    | DotnetProject
+    | CustomProject
+
+type ProjectStructure = {
+    Projects : Map<string, Project>
+    RootFolder : string
+}
+
 module Graph =
     open Pathes
     open FSharp.Data
     
     type CsFsProject = XmlProvider<"csproj.xml", SampleIsList= true, EmbeddedResource="IncrementalBuild, csproj.xml">
-    type OutputType = Exe | Lib
-    type Project = {
-        Name : string
-        AssemblyName : string
-        OutputType : OutputType
-        ProjectPath : string
-        ProjectFolder : string
-        ProjectReferences : string array
-        TargetFramework : string
-    }
-
-    type ProjectStructure = {
-        Projects : Map<string, Project>
-        RootFolder : string
-    }
-
+    
     let rec private scanProjectFiles dir = seq {
         yield! Directory.GetFiles(dir, "*.csproj") |> Array.map Path.GetFullPath
         yield! Directory.GetFiles(dir, "*.fsproj") |> Array.map Path.GetFullPath
