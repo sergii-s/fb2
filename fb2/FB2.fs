@@ -20,21 +20,12 @@ type BuildParameters = {
 type IncrementalBuildInfo = {
     Id : string
     DiffId : string option
-    ProjectStructure : ProjectStructure
-    ImpactedProjects : Project array
-    NotImpactedProjects : Project array
     Parameters : BuildParameters
+    ProjectStructure : ProjectStructure
+    ImpactedProjectStructure : ProjectStructure
+//    NotImpactedProjectStructure : ProjectStructure
 }
 
-type ApplicationType =
-    | Project of string
-    | Folder of string
-
-type Application  = {
-    Application : ApplicationType
-    Publish : Graph.Project -> unit
-    Deploy : Graph.Project -> unit
-}
     
 type BuildConfiguration =
     | Release
@@ -78,8 +69,6 @@ module FB2 =
             | Debug -> "Debug"
         let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id) 
         build.ProjectStructure.Projects
-        |> Map.toSeq
-        |> Seq.map snd
         |> Seq.collect (fun p -> seq {
             yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
             yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
@@ -99,7 +88,7 @@ module FB2 =
             
         let projectStructure = 
             parameters.Repository 
-            |> Graph.readProjectStructure
+            |> Graph.readProjectStructure applications
         let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck
         let currentCommitId = commitIds |> Array.head
         
@@ -110,18 +99,18 @@ module FB2 =
         match lastSnapshotCommit with
         | Some commitId ->
             let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId commitId
-            let impactedProjects = modifiedFiles |> Graph.getImpactedProjects projectStructure |> Array.ofSeq
-            let notImpactedProjects = projectStructure.Projects
-                                       |> Map.toArray
-                                       |> Array.map snd
-                                       |> Array.except impactedProjects
-            printfn "Last snapshot %s. Build %i of %i projects" commitId impactedProjects.Length notImpactedProjects.Length
+            let impactedProjectStructure = modifiedFiles |> Graph.getImpactedProjects projectStructure 
+//            let notImpactedProjects = projectStructure.Projects
+//                                       |> Array.except impactedProjects
+            printfn "Last snapshot %s. Impacted %i of %i projects. Impacted %i of %i applications"
+                commitId
+                impactedProjectStructure.Projects.Length projectStructure.Projects.Length
+                impactedProjectStructure.Applications.Length projectStructure.Applications.Length
             {
                  Id = currentCommitId
                  DiffId = Some commitId
                  ProjectStructure = projectStructure
-                 ImpactedProjects = impactedProjects
-                 NotImpactedProjects = notImpactedProjects
+                 ImpactedProjectStructure = impactedProjectStructure
                  Parameters = parameters
             }
         | None ->
@@ -130,10 +119,7 @@ module FB2 =
                  Id = currentCommitId
                  DiffId = None
                  ProjectStructure = projectStructure
-                 ImpactedProjects = projectStructure.Projects
-                                       |> Map.toArray
-                                       |> Array.map snd
-                 NotImpactedProjects = [||]
+                 ImpactedProjectStructure = projectStructure
                  Parameters = parameters
             }
 
@@ -145,3 +131,24 @@ module FB2 =
          
         ProcessHelper.run "dotnet" (sprintf "new sln --name %s" name) folder |> ignore
         ProcessHelper.run "dotnet" (sprintf "sln %s.sln add %s" name (projects |> String.concat " ")) folder |> ignore
+    
+    let publish structure =
+        structure.Applications
+        |> Array.map (fun app -> 
+            match app.Parameters with
+            | DotnetApplication dotnetApp ->
+                let project = structure.Projects |> Array.find (fun p -> p.Name = app.Name)
+                async { project |> dotnetApp.Publish }
+            | CustomApplication customApp ->
+                async { customApp.RootFolder |> customApp.Publish }
+        )
+    let deploy structure =
+        structure.Applications
+        |> Array.map (fun app -> 
+            match app.Parameters with
+            | DotnetApplication dotnetApp ->
+                let project = structure.Projects |> Array.find (fun p -> p.Name = app.Name)
+                async { project |> dotnetApp.Deploy }
+            | CustomApplication customApp ->
+                async { customApp.RootFolder |> customApp.Deploy }
+        )        

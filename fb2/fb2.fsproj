@@ -9,6 +9,7 @@
   <ItemGroup>
     <EmbeddedResource Include="csproj.xml" />
     <Compile Include="CommonExtensions.fs" />
+    <Compile Include="Async.fs" />
     <Compile Include="ProcessHelper.fs" />
     <Compile Include="Pathes.fs" />
     <Compile Include="Zip.fs" />
