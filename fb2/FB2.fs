@@ -20,12 +20,20 @@ type BuildParameters = {
 type IncrementalBuildInfo = {
     Id : string
     DiffId : string option
+    Version : string
     ProjectStructure : ProjectStructure
     ImpactedProjects : Project array
     NotImpactedProjects : Project array
     Parameters : BuildParameters
 }
-    
+
+open FSharp.Data
+open System.IO
+type SnaphotDescription = JsonProvider<""" { 
+    "id" : "asdlkfds",
+    "apps" : [{ "app":"bidder", "snapshot":"sjg8sjen", "version":"1.0.0" }]
+}""">
+
 type BuildConfiguration =
     | Release
     | Debug
@@ -59,12 +67,43 @@ module FB2 =
         MaxCommitsCheck = 20
     }
 
+    let private updateSnapshotDescription build =
+        let snapshotDescriptionFile = sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder
+        let snapshotDescription =
+            if snapshotDescriptionFile |> File.Exists then
+                let oldSnapshotDescription = 
+                    snapshotDescriptionFile 
+                    |> SnaphotDescription.Load
+                //todo : apps not projects
+                let apps = 
+                    build.ProjectStructure.Projects 
+                    |> Map.toSeq
+                    |> Seq.map (fun (_, p) -> 
+                        match build.ImpactedProjects |> Array.tryFind (fun ip -> ip.Name = p.Name) with
+                        | Some p -> SnaphotDescription.App(p.Name, build.Id, build.Version)
+                        | None -> oldSnapshotDescription.Apps |> Array.find (fun app -> app.App = p.Name)
+                    )
+                    |> Array.ofSeq
+                SnaphotDescription.Root(build.Id, apps)       
+            else
+                let apps = 
+                    //todo apps
+                    build.ImpactedProjects
+                    |> Array.map (fun p -> 
+                        SnaphotDescription.App(p.Name, build.Id, build.Version)
+                    )
+                SnaphotDescription.Root(build.Id, apps)       
+            
+        use writer = snapshotDescriptionFile |> File.CreateText 
+        snapshotDescription.JsonValue.WriteTo(writer, JsonSaveOptions.None)
+
     let createSnapshot configuration build =
         let conf =
             match configuration with
             | Release -> "Release"
             | Debug -> "Debug"
         let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id) 
+        build |> updateSnapshotDescription
         build.ProjectStructure.Projects
         |> Map.toSeq
         |> Seq.map snd
@@ -72,6 +111,7 @@ module FB2 =
             yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
             yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
         })
+        |> Seq.append [sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder]
         |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
         |> SnapshotStorage.saveSnapshot build.Parameters.Storage
 
@@ -84,7 +124,7 @@ module FB2 =
     
     let getIncrementalBuild parametersBuilder =
         let parameters = defaultBuilder |> parametersBuilder
-            
+        
         let projectStructure = 
             parameters.Repository 
             |> Graph.readProjectStructure
