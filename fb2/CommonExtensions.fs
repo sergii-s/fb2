@@ -8,3 +8,5 @@ module String =
         s.Split([|splitWith|], StringSplitOptions.RemoveEmptyEntries)
     let trim (trimChar : char) (s : string) =
         s.Trim(trimChar)
+    let join (separator : string) (strings : string seq) =
+        String.Join(separator, strings)

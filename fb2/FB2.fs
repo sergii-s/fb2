@@ -67,7 +67,8 @@ module FB2 =
             match configuration with
             | Release -> "Release"
             | Debug -> "Debug"
-        let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id) 
+        let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id)
+        printfn "Temporary zip %s" zipTemporaryPath
         build.ProjectStructure.Projects
         |> Seq.collect (fun p -> seq {
             yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
@@ -106,6 +107,7 @@ module FB2 =
                 commitId
                 impactedProjectStructure.Projects.Length projectStructure.Projects.Length
                 impactedProjectStructure.Applications.Length projectStructure.Applications.Length
+            printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
                  DiffId = Some commitId
@@ -115,6 +117,8 @@ module FB2 =
             }
         | None ->
             printfn "Last snapshot is not found. Full build should be done"
+            commitIds |> String.join "," |> printfn "Checked commit ids : %s"
+            printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
                  DiffId = None

@@ -63,31 +63,18 @@ module Application =
         Publish = ignore
         Deploy = ignore
     }
-//    let dotnet name builder =
-//        let params:DotnetApplicationProperties = defaultParamsDotnetApp |> builder
-//        {
-//            Name = name
-//            DependsOn = params.DependsOn
-//            Parameters = DotnetApplication {DotnetApplication.Publish = params.Publish; Deploy = params.Deploy }
-//        }
-//    let custom name folder builder =
-//        let params:CustomApplicationProperties = defaultParamsDotnetApp |> builder
-//        {
-//            Name = name
-//            DependsOn = params.DependsOn
-//            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = params.Publish; Deploy = params.Deploy }
-//        }
-    let dotnet name (params:DotnetApplicationProperties) =
+
+    let dotnet name (parameters:DotnetApplicationProperties) =
         {
             Name = name
-            DependsOn = params.DependsOn
-            Parameters = DotnetApplication {DotnetApplication.Publish = params.Publish; Deploy = params.Deploy }
+            DependsOn = parameters.DependsOn
+            Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish; Deploy = parameters.Deploy }
         }
-    let custom name folder (params:CustomApplicationProperties) =
+    let custom name folder (parameters:CustomApplicationProperties) =
         {
             Name = name
-            DependsOn = params.DependsOn
-            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = params.Publish; Deploy = params.Deploy }
+            DependsOn = parameters.DependsOn
+            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = parameters.Publish; Deploy = parameters.Deploy }
         }        
 
 module Graph =
@@ -198,7 +185,7 @@ module Graph =
         yield! dependentProjects |> Seq.collect (getDependentProjects structure)
     }
     let rec getProjectWithReferencedProjects structure project =
-        let projectMap = structure.Projects |> Array.map (fun p -> p.ProjectFolder, p) |> Map.ofSeq
+        let projectMap = structure.Projects |> Array.map (fun p -> p.ProjectPath, p) |> Map.ofSeq
         seq {
             yield project   
             yield! getReferencedProjects projectMap project

@@ -3,7 +3,7 @@
 module Git =
 
     let getCommits repo count = 
-        ProcessHelper.run "git" (sprintf "log -%i --pretty=format:'%%h'" count) repo
+        ProcessHelper.run "git" (sprintf "log -%i --pretty=format:'%%H'" count) repo
             |> String.split "\n"
             |> Array.map (String.trim '\'')
 
