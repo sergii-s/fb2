@@ -49,6 +49,21 @@ module SnapshotStorage =
         | FileSystem path -> FileSystemSnapshotStorage.saveSnapshot path
         | GoogleCloudStorage bucket -> GCSSnapshotStorage.saveSnapshot bucket
 
+
+module FileStructure =
+    
+    let getWorkingFolder build =
+        sprintf "%s/.fb2/" build.ProjectStructure.RootFolder
+    
+    let getSnapshotDescriptionFilePath build =
+        build
+            |> getWorkingFolder
+            |> sprintf "%s/applications.json" 
+    
+    let ensureWorkingFolder build =
+        let workingFolder = build |> getWorkingFolder
+        if workingFolder |> Directory.Exists |> not then
+            workingFolder |> Directory.CreateDirectory |> ignore
     
 module FB2 =
     open System
@@ -63,9 +78,12 @@ module FB2 =
             |> SnaphotStorage.FileSystem 
         MaxCommitsCheck = 20
     }
-
+    
     let private updateSnapshotDescription build =
-        let snapshotDescriptionFile = sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder
+        build |> FileStructure.ensureWorkingFolder
+        let snapshotDescriptionFile =
+            build |> FileStructure.getSnapshotDescriptionFilePath
+        
         let snapshotDescription =
             if snapshotDescriptionFile |> File.Exists then
                 let oldSnapshotDescription = 
@@ -104,7 +122,7 @@ module FB2 =
             yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
             yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
         })
-        |> Seq.append [sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder]
+        |> Seq.append [build |> FileStructure.getSnapshotDescriptionFilePath]
         |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
         |> SnapshotStorage.saveSnapshot build.Parameters.Storage
 
@@ -132,8 +150,6 @@ module FB2 =
         | Some commitId ->
             let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId commitId
             let impactedProjectStructure = modifiedFiles |> Graph.getImpactedProjects projectStructure 
-//            let notImpactedProjects = projectStructure.Projects
-//                                       |> Array.except impactedProjects
             printfn "Last snapshot %s. Impacted %i of %i projects. Impacted %i of %i applications"
                 commitId
                 impactedProjectStructure.Projects.Length projectStructure.Projects.Length
