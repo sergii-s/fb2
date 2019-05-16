@@ -2,6 +2,7 @@
 open System.IO
 open FSharp.Data
 open Graph
+open Model
 
 type SourceControlProvider =
     | Git
@@ -12,6 +13,7 @@ type SnaphotStorage =
         
 type BuildParameters = {
     Repository : string
+    BaseBranches : string list
     SourceControlProvider : SourceControlProvider
     Storage : SnaphotStorage
     MaxCommitsCheck : int
@@ -20,7 +22,8 @@ type BuildParameters = {
 type IncrementalBuildInfo = {
     Id : string
     Version : string
-    DiffId : string option
+    Base : Snapshot option
+    Branch : string
     Parameters : BuildParameters
     ProjectStructure : ProjectStructure
     ImpactedProjectStructure : ProjectStructure
@@ -53,7 +56,7 @@ module SnapshotStorage =
 module FileStructure =
     
     let getWorkingFolder build =
-        sprintf "%s/.fb2/" build.ProjectStructure.RootFolder
+        sprintf "%s/.fb2" build.ProjectStructure.RootFolder
     
     let getSnapshotDescriptionFilePath build =
         build
@@ -77,6 +80,7 @@ module FB2 =
             |> sprintf "%s/.fb2"
             |> SnaphotStorage.FileSystem 
         MaxCommitsCheck = 20
+        BaseBranches = []
     }
     
     let private updateSnapshotDescription build =
@@ -114,22 +118,24 @@ module FB2 =
             match configuration with
             | Release -> "Release"
             | Debug -> "Debug"
-        let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id)
+        let zipTemporaryPath = (sprintf "%s%s.zip" (Path.GetTempPath()) build.Id)
         printfn "Temporary zip %s" zipTemporaryPath
         build |> updateSnapshotDescription
-        build.ProjectStructure.Projects
-        |> Seq.collect (fun p -> seq {
-            yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
-            yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
-        })
-        |> Seq.append [build |> FileStructure.getSnapshotDescriptionFilePath]
-        |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
-        |> SnapshotStorage.saveSnapshot build.Parameters.Storage
+        let zipFile =
+            build.ProjectStructure.Projects
+            |> Seq.collect (fun p -> seq {
+                yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
+                yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
+            })
+            |> Seq.append [build |> FileStructure.getSnapshotDescriptionFilePath]
+            |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
 
-    let restoreSnapshot build =
-        match build.DiffId with
-        | Some snapshotId -> 
-            let snapshotFile = snapshotId |> SnapshotStorage.getSnapshot build.Parameters.Storage
+        SnapshotStorage.saveSnapshot build.Parameters.Storage {Id = build.Id; Branch = build.Branch} zipTemporaryPath
+
+    let restoreSnapshot build  =
+        match build.Base with
+        | Some snapshot -> 
+            let snapshotFile = snapshot |> SnapshotStorage.getSnapshot build.Parameters.Storage
             snapshotFile |> Zip.unzip build.ProjectStructure.RootFolder
         | None -> printfn "Last build not found. Nothing to restore"
     
@@ -139,26 +145,31 @@ module FB2 =
         let projectStructure = 
             parameters.Repository 
             |> Graph.readProjectStructure applications
-        let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck
-        let currentCommitId = commitIds |> Array.head
+        let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck 
+        let branch = projectStructure.RootFolder |> Git.getBranch
+        let currentCommitId = commitIds |> List.head
         
-        let lastSnapshotCommit =
+        printfn "Current commit id %s" currentCommitId
+        printfn "Current branch %s" branch
+        
+        let baseSnapshot =
             commitIds
-            |> SnapshotStorage.findSnapshot parameters.Storage 
+            |> SnapshotStorage.findSnapshot parameters.Storage (branch :: parameters.BaseBranches)
         
-        match lastSnapshotCommit with
-        | Some commitId ->
-            let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId commitId
+        match baseSnapshot with
+        | Some snapshot ->
+            let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId snapshot.Id
             let impactedProjectStructure = modifiedFiles |> Graph.getImpactedProjects projectStructure 
-            printfn "Last snapshot %s. Impacted %i of %i projects. Impacted %i of %i applications"
-                commitId
+            printfn "Last snapshot %s from branch %s. Impacted %i of %i projects. Impacted %i of %i applications"
+                snapshot.Id
+                snapshot.Branch
                 impactedProjectStructure.Projects.Length projectStructure.Projects.Length
                 impactedProjectStructure.Applications.Length projectStructure.Applications.Length
-            printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
                  Version = version
-                 DiffId = Some commitId
+                 Base = Some snapshot
+                 Branch = branch
                  ProjectStructure = projectStructure
                  ImpactedProjectStructure = impactedProjectStructure
                  Parameters = parameters
@@ -166,11 +177,11 @@ module FB2 =
         | None ->
             printfn "Last snapshot is not found. Full build should be done"
             commitIds |> String.join "," |> printfn "Checked commit ids : %s"
-            printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
                  Version = version
-                 DiffId = None
+                 Base = None
+                 Branch = branch
                  ProjectStructure = projectStructure
                  ImpactedProjectStructure = projectStructure
                  Parameters = parameters
@@ -182,8 +193,13 @@ module FB2 =
             |> Pathes.combine folder
             |> Pathes.safeDelete 
          
-        ProcessHelper.run "dotnet" (sprintf "new sln --name %s" name) folder |> ignore
-        ProcessHelper.run "dotnet" (sprintf "sln %s.sln add %s" name (projects |> String.concat " ")) folder |> ignore
+        sprintf "dotnet new sln --name %s" name
+            |> ProcessHelper.run folder
+            |> ignore
+        
+        sprintf "dotnet sln %s.sln add %s" name (projects |> String.concat " ")
+            |> ProcessHelper.run folder
+            |> ignore
     
     let publish structure =
         structure.Applications

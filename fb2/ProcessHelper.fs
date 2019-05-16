@@ -3,10 +3,12 @@
 open System.Diagnostics
 
 module ProcessHelper =
-    let run name args dir =
+    let run dir args =
+        let escapedArgs =
+            args |> String.replace "\"" "\\\"" 
         let proc = new Process()
-        proc.StartInfo.FileName <- name
-        proc.StartInfo.Arguments <- args
+        proc.StartInfo.FileName <- "/bin/bash"
+        proc.StartInfo.Arguments <- sprintf  "-c \"%s\"" escapedArgs
         proc.StartInfo.WorkingDirectory <- dir
         proc.StartInfo.UseShellExecute <- false
         proc.StartInfo.RedirectStandardOutput <- true
@@ -14,4 +16,3 @@ module ProcessHelper =
         proc.Start() |> ignore
         proc.WaitForExit()
         proc.StandardOutput.ReadToEnd()
-        

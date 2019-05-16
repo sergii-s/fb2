@@ -5,26 +5,35 @@ open System.IO
 open Google.Cloud.Storage.V1
 
 module GCSSnapshotStorage =
+    open Model
     
     let private client = StorageClient.Create();
     let private KB = 0x400;
     let private MB = 0x100000;
 
-    let firstAvailableSnapshot bucket commitIds =
+    let firstAvailableSnapshot bucket branches commitIds =
         let snapshots =
-            client.ListObjects(bucket)
-            |> Seq.map (fun x -> x.Name |> Path.GetFileNameWithoutExtension)
-            |> Set.ofSeq
-        commitIds |> Array.tryFind snapshots.Contains
+            branches
+            |> List.collect
+                   (fun branch ->
+                                client.ListObjects(bucket, sprintf "%s/" branch)
+                                |> Seq.map (fun p ->
+                                    p.Name |> Path.GetFileNameWithoutExtension, {Id = p.Name |> Path.GetFileNameWithoutExtension;Branch = branch }
+                                )
+                                |> List.ofSeq
+                    )
+            |> Map.ofList
+        commitIds |> List.tryPick snapshots.TryFind
     
-    let saveSnapshot bucket zip =
-        let zipName = zip |> Path.GetFileName
+    let saveSnapshot bucket (snapshot:Snapshot) zip =
+        let zipName = sprintf "%s/%s.zip" snapshot.Branch snapshot.Id
         use zipStream = File.Open(zip, FileMode.Open)
+        printfn "Uploading snapshot %s" zipName
         client.UploadObject(bucket, zipName, "application/zip", zipStream, UploadObjectOptions(ChunkSize=Nullable<int>(10*MB)))
             |>ignore 
     
-    let getSnapshot bucket snapshotId =
-        let zipName = sprintf "%s.zip" snapshotId
+    let getSnapshot bucket (snapshot:Snapshot) =
+        let zipName = sprintf "%s/%s.zip" snapshot.Branch snapshot.Id
         let tempFilePath = sprintf "%s/%s" (Path.GetTempPath()) zipName
         use outputFile = File.Create(tempFilePath)
         client.DownloadObject(bucket, zipName, outputFile, DownloadObjectOptions(ChunkSize=Nullable<int>(10*MB)))

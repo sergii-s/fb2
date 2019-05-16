@@ -14,6 +14,7 @@
     <Compile Include="ProcessHelper.fs" />
     <Compile Include="Pathes.fs" />
     <Compile Include="Zip.fs" />
+    <Compile Include="Model.fs" />
     <Compile Include="SourceControl\Git.fs" />
     <Compile Include="Storage\FileSystemSnapshotStorage.fs" />
     <Compile Include="Storage\GCSSnapshotStorage.fs" />

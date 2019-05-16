@@ -3,17 +3,23 @@
 open System.IO
 
 module FileSystemSnapshotStorage =
+    open Model
     
-    let firstAvailableSnapshot storagePath commitIds =
+    let firstAvailableSnapshot storagePath branches commitIds =
         let snapshots =
-            Directory.EnumerateFiles(storagePath, "*.zip")
-            |> Seq.map Path.GetFileNameWithoutExtension
-            |> Set.ofSeq
-        commitIds |> Array.tryFind snapshots.Contains
+            branches
+            |> List.collect
+                   (
+                        fun branch ->
+                            Directory.EnumerateFiles(Path.Combine(storagePath, branch), "*.zip")
+                            |> Seq.map (fun f -> f |> Path.GetFileNameWithoutExtension, {Id = f |> Path.GetFileNameWithoutExtension; Branch = branch})
+                            |> List.ofSeq
+                    )
+            |> Map.ofSeq
+        commitIds |> List.tryPick snapshots.TryFind
         
-    let saveSnapshot storagePath zip =
-        let zipName = zip |> Path.GetFileName
-        File.Move(zip, sprintf "%s/%s" storagePath zipName)    
+    let saveSnapshot storagePath (snapshot:Snapshot) zip =
+        File.Move(zip, sprintf "%s/%s/%s.zip" storagePath snapshot.Branch snapshot.Id)    
 
-    let getSnapshot storagePath snapshotId =
-        Path.Combine(storagePath, sprintf "%s.zip" snapshotId) 
+    let getSnapshot storagePath (snapshot:Snapshot) =
+        Path.Combine(storagePath, snapshot.Branch, sprintf "%s.zip" snapshot.Id) 

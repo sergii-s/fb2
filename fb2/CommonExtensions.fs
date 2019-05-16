@@ -10,3 +10,5 @@ module String =
         s.Trim(trimChar)
     let join (separator : string) (strings : string seq) =
         String.Join(separator, strings)
+    let replace (replaceWhat:string) (replaceBy:string) (value:string) =
+        value.Replace(replaceWhat, replaceBy)

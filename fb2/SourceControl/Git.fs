@@ -2,11 +2,19 @@
 
 module Git =
 
-    let getCommits repo count = 
-        ProcessHelper.run "git" (sprintf "log -%i --pretty=format:'%%H'" count) repo
+    let getCommits repo count =
+        sprintf "git log -%i --pretty=format:'%%H'" count
+            |> ProcessHelper.run repo
             |> String.split "\n"
             |> Array.map (String.trim '\'')
+            |> List.ofSeq
 
     let getDiffFiles repo commit1 commit2 =
-        ProcessHelper.run "git" (sprintf "diff --name-only %s %s" commit1 commit2) repo
+        sprintf "git diff --name-only %s %s" commit1 commit2
+            |> ProcessHelper.run repo
             |> String.split "\n"
+            
+    let getBranch repo =
+        "git branch | grep \\* | cut -d ' ' -f2" 
+            |> ProcessHelper.run repo
+            |> String.trim '\n'
