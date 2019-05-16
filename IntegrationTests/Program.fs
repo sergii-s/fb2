@@ -42,7 +42,7 @@ let main argv =
               Deploy = ignore
           }     
       |] 
-    let incrementalBuild = apps |> FB2.getIncrementalBuild (fun p -> 
+    let incrementalBuild = apps |> FB2.getIncrementalBuild "1.0.0" (fun p -> 
         { p with 
             Repository = "/home/sergii/dev/antvoice" 
             Storage = SnaphotStorage.FileSystem "/home/sergii/.fb2"
