@@ -19,19 +19,21 @@ type BuildParameters = {
     
 type IncrementalBuildInfo = {
     Id : string
+    Version : string
     DiffId : string option
     Parameters : BuildParameters
     ProjectStructure : ProjectStructure
     ImpactedProjectStructure : ProjectStructure
-//    NotImpactedProjectStructure : ProjectStructure
 }
 
-    
+type SnaphotDescription = JsonProvider<""" { 
+    "id" : "asdlkfds",
+    "apps" : [{ "app":"bidder", "snapshot":"sjg8sjen", "version":"1.0.0" }]
+}""">
+
 type BuildConfiguration =
     | Release
     | Debug
-
-type SnaphotDescription = JsonProvider<""" { "apps" : [{ "app":"bidder", "snapshot":"sjg8sjen" }] }""">
 
 module SnapshotStorage =
     let findSnapshot storage = 
@@ -62,6 +64,33 @@ module FB2 =
         MaxCommitsCheck = 20
     }
 
+    let private updateSnapshotDescription build =
+        let snapshotDescriptionFile = sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder
+        let snapshotDescription =
+            if snapshotDescriptionFile |> File.Exists then
+                let oldSnapshotDescription = 
+                    snapshotDescriptionFile 
+                    |> SnaphotDescription.Load
+                let apps = 
+                    build.ProjectStructure.Applications
+                    |> Array.map (fun app -> 
+                        match build.ImpactedProjectStructure.Applications |> Array.tryFind (fun app' -> app'.Name = app.Name) with
+                        | Some app -> SnaphotDescription.App(app.Name, build.Id, build.Version)
+                        | None -> oldSnapshotDescription.Apps |> Array.find (fun app' -> app'.App = app.Name)
+                    )
+                    |> Array.ofSeq
+                SnaphotDescription.Root(build.Id, apps)       
+            else
+                let apps = 
+                    build.ImpactedProjectStructure.Applications
+                    |> Array.map (fun p -> 
+                        SnaphotDescription.App(p.Name, build.Id, build.Version)
+                    )
+                SnaphotDescription.Root(build.Id, apps)       
+            
+        use writer = snapshotDescriptionFile |> File.CreateText 
+        snapshotDescription.JsonValue.WriteTo(writer, JsonSaveOptions.None)
+
     let createSnapshot configuration build =
         let conf =
             match configuration with
@@ -69,11 +98,13 @@ module FB2 =
             | Debug -> "Debug"
         let zipTemporaryPath = (sprintf "%s/%s.zip" (Path.GetTempPath()) build.Id)
         printfn "Temporary zip %s" zipTemporaryPath
+        build |> updateSnapshotDescription
         build.ProjectStructure.Projects
         |> Seq.collect (fun p -> seq {
             yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
             yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
         })
+        |> Seq.append [sprintf "%s/.fb2/applications.json" build.ProjectStructure.RootFolder]
         |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
         |> SnapshotStorage.saveSnapshot build.Parameters.Storage
 
@@ -84,7 +115,7 @@ module FB2 =
             snapshotFile |> Zip.unzip build.ProjectStructure.RootFolder
         | None -> printfn "Last build not found. Nothing to restore"
     
-    let getIncrementalBuild parametersBuilder applications =
+    let getIncrementalBuild version parametersBuilder applications =
         let parameters = defaultParameters |> parametersBuilder
             
         let projectStructure = 
@@ -110,6 +141,7 @@ module FB2 =
             printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
+                 Version = version
                  DiffId = Some commitId
                  ProjectStructure = projectStructure
                  ImpactedProjectStructure = impactedProjectStructure
@@ -121,6 +153,7 @@ module FB2 =
             printfn "Current snapshot id %s" currentCommitId
             {
                  Id = currentCommitId
+                 Version = version
                  DiffId = None
                  ProjectStructure = projectStructure
                  ImpactedProjectStructure = projectStructure
