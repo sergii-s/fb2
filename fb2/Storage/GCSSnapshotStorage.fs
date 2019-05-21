@@ -34,7 +34,7 @@ module GCSSnapshotStorage =
     
     let getSnapshot bucket (snapshot:Snapshot) =
         let zipName = sprintf "%s/%s.zip" snapshot.Branch snapshot.Id
-        let tempFilePath = sprintf "%s/%s" (Path.GetTempPath()) zipName
+        let tempFilePath = sprintf "%s/%s.zip" (Path.GetTempPath()) snapshot.Id
         use outputFile = File.Create(tempFilePath)
         client.DownloadObject(bucket, zipName, outputFile, DownloadObjectOptions(ChunkSize=Nullable<int>(10*MB)))
         tempFilePath

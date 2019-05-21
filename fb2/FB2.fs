@@ -186,6 +186,30 @@ module FB2 =
                  Parameters = parameters
             }
 
+    let getFullBuild version parametersBuilder applications =
+        let parameters = defaultParameters |> parametersBuilder
+            
+        let projectStructure = 
+            parameters.Repository 
+            |> Graph.readProjectStructure applications
+        let commitIds = Git.getCommits projectStructure.RootFolder parameters.MaxCommitsCheck 
+        let branch = projectStructure.RootFolder |> Git.getBranch
+        let currentCommitId = commitIds |> List.head
+        
+        printfn "Ignoring snapshot. Full build was requested"
+        printfn "Current commit id %s" currentCommitId
+        printfn "Current branch %s" branch
+        {
+             Id = currentCommitId
+             Version = version
+             Base = None
+             Branch = branch
+             ProjectStructure = projectStructure
+             ImpactedProjectStructure = projectStructure
+             Parameters = parameters
+        }
+        
+        
     let createView name folder projects =
         name
             |> sprintf "%s.sln"
