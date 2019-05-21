@@ -206,9 +206,9 @@ module FB2 =
             match app.Parameters with
             | DotnetApplication dotnetApp ->
                 let project = structure.Projects |> Array.find (fun p -> p.Name = app.Name)
-                async { project |> dotnetApp.Publish }
+                async { return project |> dotnetApp.Publish }
             | CustomApplication customApp ->
-                async { customApp.RootFolder |> customApp.Publish }
+                async { return customApp.RootFolder |> customApp.Publish }
         )
         
 //    let deploy structure =
