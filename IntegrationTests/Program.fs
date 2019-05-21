@@ -3,13 +3,21 @@
 open System
 open IncrementalBuild
 
-let inline (>>>) f1 f2 = fun x -> f1(x); f2(x)
+let inline (>>>) f1 f2 = fun x ->
+    let res = f1(x)
+    if res = 0 then f2(x) else res 
+
 let publish (project:Project) = 
   printfn "Publishing app"
+  0
+
 let docker app (project:Project) = 
   printfn "Docker app"
+  0
+  
 let zipPublished app (project:Project) = 
   printfn "Docker app"
+  0
 
 [<EntryPoint>]
 let main argv =
@@ -20,26 +28,26 @@ let main argv =
           {
               DependsOn =  [|"kubernetes/promising-products-loader"|]
               Publish = publish >>> docker "antvoice-test/cache-loader"
-              Deploy = ignore
+              Deploy = Application.NoDeployment
           }
         Application.dotnet "OneShot"
           {
               DependsOn = [||]
               Publish = publish >>> docker "antvoice-test/oneshot"
-              Deploy = ignore
+              Deploy = Application.NoDeployment
           }
         Application.dotnet "MazeberryExporter"
           {
               DependsOn = [||]
               Publish = publish >>> docker "antvoice-test/mazeberry"
-              Deploy = ignore
+              Deploy = Application.NoDeployment
           }
         // CUSTOM
         Application.custom "commander-ui" "AntVoice.Web/AntVoice.Commander/commander"
           {
               DependsOn = [||]
-              Publish = ignore 
-              Deploy = ignore
+              Publish = Application.NoPublish
+              Deploy = Application.NoDeployment
           }     
       |] 
     let incrementalBuild = apps |> FB2.getIncrementalBuild "1.0.0" (fun p -> 

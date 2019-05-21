@@ -1,4 +1,5 @@
 ﻿namespace IncrementalBuild
+open System
 open System.IO
 open FSharp.Data
 open Graph
@@ -55,16 +56,14 @@ module SnapshotStorage =
 
 module FileStructure =
     
-    let getWorkingFolder build =
-        sprintf "%s/.fb2" build.ProjectStructure.RootFolder
+    let getWorkingFolder rootFolder =
+        rootFolder |> sprintf "%s/.fb2" 
     
-    let getSnapshotDescriptionFilePath build =
-        build
-            |> getWorkingFolder
-            |> sprintf "%s/applications.json" 
+    let getSnapshotDescriptionFilePath rootFolder =
+        rootFolder |> getWorkingFolder |> sprintf "%s/applications.json"
     
-    let ensureWorkingFolder build =
-        let workingFolder = build |> getWorkingFolder
+    let ensureWorkingFolder rootFolder =
+        let workingFolder = rootFolder |> getWorkingFolder
         if workingFolder |> Directory.Exists |> not then
             workingFolder |> Directory.CreateDirectory |> ignore
     
@@ -84,9 +83,9 @@ module FB2 =
     }
     
     let private updateSnapshotDescription build =
-        build |> FileStructure.ensureWorkingFolder
+        build.ProjectStructure.RootFolder |> FileStructure.ensureWorkingFolder
         let snapshotDescriptionFile =
-            build |> FileStructure.getSnapshotDescriptionFilePath
+            build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath
         
         let snapshotDescription =
             if snapshotDescriptionFile |> File.Exists then
@@ -127,7 +126,7 @@ module FB2 =
                 yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
                 yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
             })
-            |> Seq.append [build |> FileStructure.getSnapshotDescriptionFilePath]
+            |> Seq.append [build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath]
             |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
 
         SnapshotStorage.saveSnapshot build.Parameters.Storage {Id = build.Id; Branch = build.Branch} zipTemporaryPath
@@ -211,13 +210,37 @@ module FB2 =
             | CustomApplication customApp ->
                 async { customApp.RootFolder |> customApp.Publish }
         )
-    let deploy structure =
-        structure.Applications
-        |> Array.map (fun app -> 
-            match app.Parameters with
-            | DotnetApplication dotnetApp ->
-                let project = structure.Projects |> Array.find (fun p -> p.Name = app.Name)
-                async { project |> dotnetApp.Deploy }
-            | CustomApplication customApp ->
-                async { customApp.RootFolder |> customApp.Deploy }
-        )        
+        
+//    let deploy structure =
+//        structure.Applications
+//        |> Array.map (fun app -> 
+//            match app.Parameters with
+//            | DotnetApplication dotnetApp ->
+//                let project = structure.Projects |> Array.find (fun p -> p.Name = app.Name)
+//                async { project |> dotnetApp.Deploy }
+//            | CustomApplication customApp ->
+//                async { customApp.RootFolder |> customApp.Deploy }
+//        )
+//    
+//    
+    
+    let private deploy rootFolder deployments filterApps =
+        let snapshotInfo =
+            rootFolder
+            |> FileStructure.getSnapshotDescriptionFilePath
+            |> SnaphotDescription.Load
+        let (impactedApplications:SnaphotDescription.App[]) =
+            snapshotInfo |> filterApps
+        
+        impactedApplications
+            |> Array.map (fun app ->
+                let deployment = deployments |> Array.find (fun (dep:Application) -> dep.Name = app.App)
+                let appInfo = { Name=app.App; Version=app.Version; SnapshotId=app.Snapshot}
+                async { return [|appInfo|] |> deployment.Deploy } 
+            )
+            
+    let deployImpacted rootFolder deployments =
+        deploy rootFolder deployments (fun snapshotInfo -> snapshotInfo.Apps |> Array.filter (fun app -> app.Snapshot = snapshotInfo.Id))
+        
+    let deployAll rootFolder deployments =
+        deploy rootFolder deployments (fun snapshotInfo -> snapshotInfo.Apps)

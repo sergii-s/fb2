@@ -15,15 +15,19 @@ type Project = {
     TargetFramework : string
 }
 
+type Artifact = {
+    Name : string
+    Version : string
+    SnapshotId : string
+}
+
 type DotnetApplication  = {
-    Publish : Project -> unit
-    Deploy : Project -> unit
+    Publish : Project -> int
 }
 
 type CustomApplication  = {
     RootFolder : string
-    Publish : string -> unit
-    Deploy : string -> unit
+    Publish : string -> int
 }
 
 type ApplicationType =
@@ -34,6 +38,7 @@ type Application = {
     Name : string
     DependsOn : string array
     Parameters : ApplicationType
+    Deploy : Artifact array -> int
 }
 
 type ProjectStructure = {
@@ -42,39 +47,46 @@ type ProjectStructure = {
     RootFolder : string
 }
 
+
+
 module Application =
+    let NoDeployment = fun _ -> 0
+    let NoPublish = fun _ -> 0
+    
     type DotnetApplicationProperties = {
         DependsOn : string array
-        Publish : Project -> unit
-        Deploy : Project -> unit
+        Publish : Project -> int
+        Deploy : Artifact[] -> int
     }
     type CustomApplicationProperties = {
         DependsOn : string array
-        Publish : string -> unit
-        Deploy : string -> unit
+        Publish : string -> int
+        Deploy : Artifact[] -> int
     }
     let private defaultParamsDotnetApp = {
         DotnetApplicationProperties.DependsOn = [||]
-        Publish = ignore
-        Deploy = ignore
+        Publish = NoPublish
+        Deploy = NoDeployment
     }
     let private defaultParamsCustomApp = {
         CustomApplicationProperties.DependsOn = [||]
-        Publish = ignore
-        Deploy = ignore
+        Publish = NoPublish
+        Deploy = NoDeployment
     }
 
     let dotnet name (parameters:DotnetApplicationProperties) =
         {
             Name = name
             DependsOn = parameters.DependsOn
-            Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish; Deploy = parameters.Deploy }
+            Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish }
+            Deploy = parameters.Deploy
         }
     let custom name folder (parameters:CustomApplicationProperties) =
         {
             Name = name
             DependsOn = parameters.DependsOn
-            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = parameters.Publish; Deploy = parameters.Deploy }
+            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = parameters.Publish }
+            Deploy = parameters.Deploy
         }        
 
 module Graph =
