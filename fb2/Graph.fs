@@ -233,7 +233,14 @@ module Graph =
             |> Array.ofSeq
         let directImpactedApplications = seq {
             for a in structure.Applications do
-                let directImpactFolders = a.DependsOn |> Array.map (fun d -> (d |> Path.GetDirectoryName) + directorySeparatorString) |> List.ofArray
+                let directImpactFolders =
+                    seq {
+                        yield! a.DependsOn |> Array.map (fun d -> (d |> Path.GetDirectoryName) + directorySeparatorString)
+                        match a.Parameters with
+                        | CustomApplication app -> yield (app.RootFolder |> Path.GetDirectoryName) + directorySeparatorString
+                        | _ -> ()
+                    } |> List.ofSeq
+                
                 let isImpacted =
                     filesFullPathes |> Seq.exists (fun f -> directImpactFolders |> List.exists(fun d -> d |> f.StartsWith))
                 if isImpacted then
