@@ -98,7 +98,7 @@ Target.create "Nuget-publish-local" (fun _ ->
 Target.create "Nuget-publish" (fun _ ->
   match nugetKey with 
   | Some nugetKey ->
-    DotNet.exec id "nuget" (sprintf "push artifacts\\*.nupkg -k %s -s %s" nugetKey nugetSource)
+    DotNet.exec id "nuget" (sprintf "push artifacts/*.nupkg -k %s -s %s" nugetKey nugetSource)
       |> ignore
   | None -> 
     failwith "You should precise 'nugetKey' environment variable to publish nuget"
@@ -119,7 +119,8 @@ open Fake.Core.TargetOperators
   ==> "Build"
   ==> "Test"
   ==> "Default"
-  ==> "Nuget-package"
+
+"Nuget-package"
   ==> "Nuget-publish"
 
 "Nuget-package"
