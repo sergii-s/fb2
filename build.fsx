@@ -13,6 +13,7 @@ nuget Fake.DotNet.AssemblyInfoFile  //"
 #load "./.fake/build.fsx/intellisense.fsx"
 
 open Fake.Core
+open Fake.Core
 open Fake.IO
 open Fake.IO.Globbing.Operators
 open Fake.DotNet
@@ -21,9 +22,10 @@ let solution = "./fb2.sln"
 let artifacts = "./artifacts"
 
 let nugetSource = "https://api.nuget.org/v3/index.json"
-let nugetKey = "oy2iua7pwzcogpb4w5gafdbx4pbqhivetbjhpxf24dlnai"
+let nugetKey = Environment.environVarOrNone "NUGET_KEY"
 
-let version = Environment.environVarOrDefault "BUILD_NUMBER" "0.11.0"
+let version = sprintf "0.11.%s" (Environment.environVar "BUILD_NUMBER")
+
 let buildConfiguration = 
   if Environment.environVarOrDefault "BUILD_CONF" "Release" = "Release"
     then 
@@ -94,8 +96,12 @@ Target.create "Nuget-publish-local" (fun _ ->
 )
 
 Target.create "Nuget-publish" (fun _ ->
-  DotNet.exec id "nuget" (sprintf "push artifacts\\*.nupkg -k %s -s %s" nugetKey nugetSource)
-    |> ignore
+  match nugetKey with 
+  | Some nugetKey ->
+    DotNet.exec id "nuget" (sprintf "push artifacts\\*.nupkg -k %s -s %s" nugetKey nugetSource)
+      |> ignore
+  | None -> 
+    failwith "You should precise 'nugetKey' environment variable to publish nuget"
 )
 
 Target.create "Default" (fun _ ->

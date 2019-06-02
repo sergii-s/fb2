@@ -12,8 +12,11 @@ pool:
 steps:
 - script: ./fake.sh build
   displayName: 'Build and test solution'
-
+  env:
+    BUILD_NUMBER: $(Build.BuildNumber)
+    
 - script: ./fake.sh build -t Nuget-publish
   displayName: 'Publish nuget'
   env:
     NUGET_KEY: $(nugetKey)
+    BUILD_NUMBER: $(Build.BuildNumber)
