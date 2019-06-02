@@ -11,9 +11,7 @@ pool:
 
 steps:
 - script: ./fake.sh build
-  displayName: 'Fake build'
+  displayName: 'Build and test solution'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+- script: ./fake.sh build -t Nuget-publish
+  displayName: 'Publish nuget'
