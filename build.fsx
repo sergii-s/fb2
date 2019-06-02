@@ -21,9 +21,9 @@ let solution = "./fb2.sln"
 let artifacts = "./artifacts"
 
 let nugetSource = "https://api.nuget.org/v3/index.json"
-let nugetKey = ""
+let nugetKey = "oy2iua7pwzcogpb4w5gafdbx4pbqhivetbjhpxf24dlnai"
 
-let version = Environment.environVarOrDefault "BUILD_NUMBER" "0.10.3"
+let version = Environment.environVarOrDefault "BUILD_NUMBER" "0.11.0"
 let buildConfiguration = 
   if Environment.environVarOrDefault "BUILD_CONF" "Release" = "Release"
     then 
@@ -64,6 +64,16 @@ Target.create "Build" (fun _ ->
         })
 )
 
+Target.create "Test" (fun _ ->
+  solution
+    |> DotNet.test (fun p -> 
+        { p with 
+            NoRestore = true
+            NoBuild = true
+            Configuration = buildConfiguration
+        })
+)
+
 Target.create "Nuget-package" (fun _ ->
   let projectFiles = !! "./**/fb2.fsproj"
   
@@ -84,7 +94,7 @@ Target.create "Nuget-publish-local" (fun _ ->
 )
 
 Target.create "Nuget-publish" (fun _ ->
-  DotNet.exec id "nuget" (sprintf "push %s/*.nupkg -k %s -s %s" artifacts nugetKey nugetSource)
+  DotNet.exec id "nuget" (sprintf "push artifacts\\*.nupkg -k %s -s %s" nugetKey nugetSource)
     |> ignore
 )
 
@@ -101,6 +111,7 @@ open Fake.Core.TargetOperators
   ==> "SetVersion"
   ==> "Restore"
   ==> "Build"
+  ==> "Test"
   ==> "Default"
   ==> "Nuget-package"
   ==> "Nuget-publish"

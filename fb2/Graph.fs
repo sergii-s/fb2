@@ -1,77 +1,28 @@
 ﻿namespace IncrementalBuild
 open System.IO
-
-
-type OutputType = Exe | Lib
-    
-type Project = {
-    Name : string
-    AssemblyName : string
-    OutputType : OutputType
-    ProjectPath : string
-    ProjectFolder : string
-    DependsOnFolders : string array
-    ProjectReferences : string array
-    TargetFramework : string
-}
-
-type Artifact = {
-    Name : string
-    Version : string
-    SnapshotId : string
-}
-
-type DotnetApplication  = {
-    Publish : Project -> int
-}
-
-type CustomApplication  = {
-    RootFolder : string
-    Publish : string -> int
-}
-
-type ApplicationType =
-    | DotnetApplication of DotnetApplication
-    | CustomApplication of CustomApplication
-
-type Application = {
-    Name : string
-    DependsOn : string array
-    Parameters : ApplicationType
-    Deploy : Artifact array -> int
-}
-
-type ProjectStructure = {
-    Applications : Application array
-    Projects : Project array
-    RootFolder : string
-}
-
-
+open Model
 
 module Application =
-    let NoDeployment = fun _ -> 0
-    let NoPublish = fun _ -> 0
-    
+
     type DotnetApplicationProperties = {
         DependsOn : string array
-        Publish : Project -> int
-        Deploy : Artifact[] -> int
+        Publish : Project -> unit
+        Deploy : Artifact[] -> unit
     }
     type CustomApplicationProperties = {
         DependsOn : string array
-        Publish : string -> int
-        Deploy : Artifact[] -> int
+        Publish : unit -> unit
+        Deploy : Artifact[] -> unit
     }
     let private defaultParamsDotnetApp = {
         DotnetApplicationProperties.DependsOn = [||]
-        Publish = NoPublish
-        Deploy = NoDeployment
+        Publish = ignore
+        Deploy = ignore
     }
     let private defaultParamsCustomApp = {
         CustomApplicationProperties.DependsOn = [||]
-        Publish = NoPublish
-        Deploy = NoDeployment
+        Publish = ignore
+        Deploy = ignore
     }
 
     let dotnet name (parameters:DotnetApplicationProperties) =
@@ -81,11 +32,11 @@ module Application =
             Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish }
             Deploy = parameters.Deploy
         }
-    let custom name folder (parameters:CustomApplicationProperties) =
+    let custom name dependsOn (parameters:CustomApplicationProperties) =
         {
             Name = name
-            DependsOn = parameters.DependsOn
-            Parameters = CustomApplication {CustomApplication.RootFolder=folder; Publish = parameters.Publish }
+            DependsOn = dependsOn
+            Parameters = CustomApplication { Publish = parameters.Publish }
             Deploy = parameters.Deploy
         }        
 
@@ -102,7 +53,7 @@ module Graph =
             Directory.GetDirectories(dir) 
             |> Seq.collect scanProjectFiles
     }
-    let private parseProjectFile (apps:Map<string, Application>) (projectFile : string) = 
+    let private parseProjectFile rootFolder (projectFile : string) = 
         try
             let project = projectFile |> CsFsProject.Load 
             let outputType = 
@@ -119,36 +70,25 @@ module Graph =
                 |> Seq.collect (fun x -> x.ProjectReferences)
                 |> Seq.map (fun x -> 
                     { Path = x.Include; RelativeFrom = projectFile |> Path.GetDirectoryName} 
-                    |> toAbsolutePath
+                    |> Pathes.toAbsolutePath
+                    |> Pathes.toRelativePath rootFolder
                 )
                 |> Array.ofSeq
             
             let projectName = projectFile |> Path.GetFileNameWithoutExtension
-            let app = apps.TryFind projectName
-            let customReferences = app |> Option.map(fun app->app.DependsOn) |> Option.defaultValue [||]
-            {   Name = projectName
-                AssemblyName = project.PropertyGroups |> Array.tryPick (fun x -> x.AssemblyName) |> Option.defaultValue projectName
-                OutputType = outputType
-                ProjectPath = projectFile
-                ProjectFolder = projectFile |> Path.GetDirectoryName
-                DependsOnFolders = customReferences
-                ProjectReferences = projectReferences
-                TargetFramework = ( project.PropertyGroups |> Array.head ).TargetFramework
-            } |> Some
+            let assemblyName = project.PropertyGroups |> Array.tryPick (fun x -> x.AssemblyName) |> Option.defaultValue projectName
+            let framework = ( project.PropertyGroups |> Array.head ).TargetFramework
+            let projectFile = projectFile |> Pathes.toRelativePath rootFolder
+            Project.Create projectName assemblyName outputType projectFile projectReferences framework
+                |> Some
         with
         | e -> printfn "WARNING: failed to parse %s project file" projectFile; None
 
     let readProjectStructure (apps:Application array) dir =
-        let appsByName =
-            apps
-            |> Seq.ofArray
-            |> Seq.map(fun app -> app.Name, app)
-            |> Map.ofSeq
-            
         let dotnetProjects = 
             dir
             |> scanProjectFiles 
-            |> Seq.choose (parseProjectFile appsByName)
+            |> Seq.choose (parseProjectFile dir)
             |> Seq.map (fun p -> p.ProjectPath, p)
             |> Map.ofSeq
             
@@ -175,8 +115,9 @@ module Graph =
                 if validProjects |> Array.exists(fun project -> project.Name = app.Name) |> not then
                     failwithf "Applicaion %s not found in project structure" app.Name
             | CustomApplication customApplication ->
-                if customApplication.RootFolder |> Pathes.combine dir |> Directory.Exists |> not then
-                    failwithf "Applicaion %s not found in the repository folder" customApplication.RootFolder
+                for dependsDir in app.DependsOn do
+                    if dependsDir |> Pathes.combine dir |> Directory.Exists |> not then
+                        failwithf "Applicaion %s not found in the repository folder" app.Name
         )
         
         {
@@ -208,44 +149,25 @@ module Graph =
             yield! getDependentProjects structure project
         }
             
-    let getImpactedProjects structure files =
+    let getImpactedProjects structure (files:string array) =
         let isProjectsApplication app (project:Project) =
             match app.Parameters with
             | DotnetApplication _ -> project.Name = app.Name
             | _ -> false
         let directorySeparatorString = Path.DirectorySeparatorChar.ToString()
-        let filesFullPathes = 
-            files 
-            |> Seq.map (fun f -> Path.Combine(structure.RootFolder, f) |> Path.GetFullPath) 
-            |> List.ofSeq
+        
         let directImpactedProjects =
-            seq {
-                for p in structure.Projects do
-                    let directImpactFolders = 
-                        p.ProjectFolder + directorySeparatorString
-                        ::
-                        (p.DependsOnFolders |> Array.map (fun d -> (d |> Path.GetDirectoryName) + directorySeparatorString) |> List.ofArray)
-                    let isImpacted =
-                        filesFullPathes |> Seq.exists (fun f -> directImpactFolders |> List.exists(fun d -> d |> f.StartsWith))
-                    if isImpacted then
-                        yield p
-            }
-            |> Array.ofSeq
-        let directImpactedApplications = seq {
-            for a in structure.Applications do
-                let directImpactFolders =
-                    seq {
-                        yield! a.DependsOn |> Array.map (fun d -> (d |> Path.GetDirectoryName) + directorySeparatorString)
-                        match a.Parameters with
-                        | CustomApplication app -> yield (app.RootFolder |> Path.GetDirectoryName) + directorySeparatorString
-                        | _ -> ()
-                    } |> List.ofSeq
-                
-                let isImpacted =
-                    filesFullPathes |> Seq.exists (fun f -> directImpactFolders |> List.exists(fun d -> d |> f.StartsWith))
-                if isImpacted then
-                    yield a
-        }
+            structure.Projects 
+            |> Array.where (fun p -> files |> Seq.exists(fun f -> p.ProjectFolder |> f.StartsWith))
+            
+        let directImpactedApplications = 
+            structure.Applications
+                |> Array.where (
+                    fun app -> app.DependsOn 
+                                |> Array.map Pathes.ensureDirSeparator 
+                                |> Array.exists(fun dependsOnDir -> files |> Seq.exists (fun f -> dependsOnDir |> f.StartsWith))
+                )
+        
         let allImpactedProjects =
             directImpactedProjects 
             |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
