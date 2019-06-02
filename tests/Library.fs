@@ -21,7 +21,7 @@ module Tests =
             |> Array.map (fun p -> p.ProjectFolder)
             |> Array.sort 
             
-        Check.That(seq folders).ContainsExactly("/", "IntegrationTests/", "fb2/", "tests/") |> ignore
+        Check.That(seq folders).ContainsExactly("/", "fb2/", "tests/") |> ignore
         Check.That(seq (project "tests").ProjectReferences).ContainsExactly("fb2/fb2.fsproj") |> ignore
         
     [<Fact>]
