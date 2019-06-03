@@ -14,17 +14,6 @@ module Application =
         Publish : unit -> unit
         Deploy : Artifact[] -> unit
     }
-    let private defaultParamsDotnetApp = {
-        DotnetApplicationProperties.DependsOn = [||]
-        Publish = ignore
-        Deploy = ignore
-    }
-    let private defaultParamsCustomApp = {
-        CustomApplicationProperties.DependsOn = [||]
-        Publish = ignore
-        Deploy = ignore
-    }
-
     let dotnet name (parameters:DotnetApplicationProperties) =
         {
             Name = name
@@ -32,10 +21,11 @@ module Application =
             Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish }
             Deploy = parameters.Deploy
         }
-    let custom name dependsOn (parameters:CustomApplicationProperties) =
+    let custom name (parameters:CustomApplicationProperties) =
+        if parameters.DependsOn |> Array.isEmpty then failwithf "Custom application should have at least one folder dependency for app %s" name
         {
             Name = name
-            DependsOn = dependsOn
+            DependsOn = parameters.DependsOn
             Parameters = CustomApplication { Publish = parameters.Publish }
             Deploy = parameters.Deploy
         }        
