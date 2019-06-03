@@ -123,8 +123,8 @@ module FB2 =
         let zipFile =
             build.ProjectStructure.Projects
             |> Seq.collect (fun p -> seq {
-                yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
-                yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" p.ProjectFolder conf p.TargetFramework, "*.*")
+                yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
+                yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
             })
             |> Seq.append [build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath]
             |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath

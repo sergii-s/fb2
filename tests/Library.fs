@@ -12,15 +12,17 @@ module Tests =
 
     [<Fact>]
     let ``Should properly read project structure`` () =
-        let solution_dir = Path.Combine(Directory.GetCurrentDirectory(), "../../../../")
-        let structure = Graph.readProjectStructure [||] solution_dir
+        let repoRelativePath = "../../../../"
+        let repoAbsolutePath = Path.Combine(Directory.GetCurrentDirectory(), repoRelativePath) |> Path.GetFullPath
+        let structure = Graph.readProjectStructure [||] repoRelativePath
         let project name = structure.Projects |> Array.find (fun p -> p.Name = name)
         
         let folders = 
             structure.Projects 
             |> Array.map (fun p -> p.ProjectFolder)
             |> Array.sort 
-            
+        
+        Check.That(structure.RootFolder).IsEqualTo(repoAbsolutePath) |> ignore            
         Check.That(seq folders).ContainsExactly("/", "fb2/", "tests/") |> ignore
         Check.That(seq (project "tests").ProjectReferences).ContainsExactly("fb2/fb2.fsproj") |> ignore
         
