@@ -21,6 +21,6 @@ module Pathes =
         else 
             dir + "/"
     let toRelativePath (relativeFrom:string) absolutePath = 
-        let uri1 = new Uri(absolutePath)
-        let uri2 = new Uri(relativeFrom |> ensureDirSeparator)        
+        let uri1 = new Uri(absolutePath |> Path.GetFullPath)
+        let uri2 = new Uri(relativeFrom |> ensureDirSeparator |> Path.GetFullPath)        
         uri2.MakeRelativeUri(uri1).ToString()
