@@ -72,7 +72,7 @@ module Graph =
             Project.Create projectName assemblyName outputType projectFile projectReferences framework
                 |> Some
         with
-        | e -> printfn "WARNING: failed to parse %s project file" projectFile; None
+        | e -> printfn "WARNING: failed to parse %s project file. %A" projectFile e; None
 
     let readProjectStructure (apps:Application array) dir =
         let dotnetProjects = 
