@@ -92,7 +92,7 @@ module Tests =
         }
         let files = [|"somefolder/file1.txt"|]
         let impacted = Graph.getImpactedProjects structure files
-        Check.That(impacted.Projects).IsEmpty() |> ignore
+        Check.That(impacted.Projects).Not.IsEmpty() |> ignore
         Check.That(impacted.Applications).Not.IsEmpty() |> ignore   
         
     [<Fact>]

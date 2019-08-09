@@ -140,10 +140,18 @@ module Graph =
         }
             
     let getImpactedProjects structure (files:string array) =
-        let isProjectsApplication app (project:Project) =
+        let getCorrespondingApplication (project:Project) =
+            structure.Applications |> Array.tryFind (fun app -> app.Name = project.Name)
+        
+        let getCorrespondingDotnetProject (app:Application) =
             match app.Parameters with
-            | DotnetApplication _ -> project.Name = app.Name
-            | _ -> false
+            | DotnetApplication _ ->
+                structure.Projects
+                    |> Array.find (fun p -> p.Name = app.Name)
+                    |> Some
+            | _ ->
+                None
+            
         let directorySeparatorString = Path.DirectorySeparatorChar.ToString()
         
         let directImpactedProjects =
@@ -159,14 +167,17 @@ module Graph =
                 )
         
         let allImpactedProjects =
-            directImpactedProjects 
-            |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
+            seq {
+                yield! directImpactedProjects |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
+                yield! directImpactedApplications |> Array.choose getCorrespondingDotnetProject
+            }
             |> Seq.distinct
             |> Array.ofSeq
+            
         let allImpactedApplications =
             seq {
                 yield! directImpactedApplications
-                yield! structure.Applications |> Array.filter (fun app -> allImpactedProjects |> Array.exists (isProjectsApplication app))
+                yield! allImpactedProjects |> Array.choose getCorrespondingApplication
             }
             |> Seq.distinctBy(fun app -> app.Name)
             |> Array.ofSeq    
