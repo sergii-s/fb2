@@ -17,6 +17,7 @@ module Async =
         let itemArray = Seq.toArray items
         let itemCount = Array.length itemArray
         let resultMap = ConcurrentDictionary<int, 'b>()
+        let exceptions = ConcurrentBag<System.Exception>()
         use block = new BlockingCollection<WorkRequest<'b>>(1)
         use completeBlock = new BlockingCollection<unit>(1)
         let monitor =
@@ -38,8 +39,11 @@ module Async =
                             let! request = async { return block.Take() }
                             match request with
                             | Job job ->
-                                let! result = job.WorkItem
-                                resultMap.AddOrUpdate(job.Id, result, fun _ _ -> result) |> ignore
+                                try
+                                    let! result = job.WorkItem
+                                    resultMap.AddOrUpdate(job.Id, result, fun _ _ -> result) |> ignore
+                                with ex -> 
+                                    ex |> exceptions.Add
                                 return! inner ()
                             | End  ->
                                 monitor.Post ()
@@ -56,9 +60,14 @@ module Async =
         [1..limit]
         |> Seq.iter (fun x -> block.Add(End))
     
+        // wait the end
         completeBlock.Take()
-        let results = Array.zeroCreate itemCount
-        resultMap
-        |> Seq.iter (fun kv -> results.[kv.Key] <- kv.Value)
-        results
+
+        if exceptions.Count > 0 then
+            System.AggregateException(exceptions) |> raise
+        else
+            let results = Array.zeroCreate itemCount
+            resultMap
+                |> Seq.iter (fun kv -> results.[kv.Key] <- kv.Value)
+            results
 
