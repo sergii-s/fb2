@@ -65,7 +65,6 @@ module Tests =
                     Artifact.Name = "Project1"
                     DependsOn = [||]
                     Parameters = { DotnetApplication.Publish = ignore } |> DotnetApplication
-                    Deploy = ignore 
                 }
             |]
             Deployments = [||]
@@ -108,7 +107,6 @@ module Tests =
                     Artifact.Name = "Project1"
                     DependsOn = [|"somefolder"|]
                     Parameters = { CustomApplication.Publish = ignore } |> CustomApplication
-                    Deploy = ignore
                 }
             |]
             Deployments = [||]

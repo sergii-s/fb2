@@ -8,11 +8,7 @@ module Model =
     }
     
     type OutputType = Exe | Lib
-//    type FolderPath = private FolderPath of string
-//    module FolderPath = 
-//        let create path = 
-//            
-            
+    
     type Project = {
         Name : string
         AssemblyName : string
@@ -55,7 +51,6 @@ module Model =
         Name : string
         DependsOn : string array
         Parameters : ApplicationType
-        Deploy : ArtifactSnapshot array -> unit
     }
     
     type Deployment = {
@@ -78,4 +73,8 @@ module Model =
         
     module Artifact = 
         let getName (artifact:Artifact) = artifact.Name
+        let withName name = getName >> (=) name
+
+    module Deployment =
+        let getName (deployment:Deployment) = deployment.Name
         let withName name = getName >> (=) name

@@ -1,9 +1,8 @@
 ﻿namespace IncrementalBuild
 open System
 open System.IO
-open FSharp.Data
-open Graph
 open Model
+open Snapshots
 
 type SourceControlProvider =
     | Git
@@ -29,11 +28,6 @@ type IncrementalBuildInfo = {
     ProjectStructure : ProjectStructure
     ImpactedProjectStructure : ProjectStructure
 }
-
-type SnaphotDescription = JsonProvider<""" { 
-    "id" : "asdlkfds",
-    "apps" : [{ "app":"bidder", "snapshot":"sjg8sjen", "version":"1.0.0" }]
-}""">
 
 type BuildConfiguration =
     | Release
@@ -86,31 +80,8 @@ module FB2 =
         build.ProjectStructure.RootFolder |> FileStructure.ensureWorkingFolder
         let snapshotDescriptionFile =
             build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath
-        
-        let snapshotDescription =
-            if snapshotDescriptionFile |> File.Exists then
-                let oldSnapshotDescription = 
-                    snapshotDescriptionFile 
-                    |> SnaphotDescription.Load
-                let apps = 
-                    build.ProjectStructure.Artifacts
-                    |> Array.map (fun artifact -> 
-                        match build.ImpactedProjectStructure.Artifacts |> Array.tryFind (Artifact.getName >> (=) artifact.Name) with
-                        | Some app -> SnaphotDescription.App(app.Name, build.Id, build.Version)
-                        | None -> oldSnapshotDescription.Apps |> Array.find (fun app' -> app'.App = artifact.Name)
-                    )
-                    |> Array.ofSeq
-                SnaphotDescription.Root(build.Id, apps)       
-            else
-                let apps = 
-                    build.ImpactedProjectStructure.Artifacts
-                    |> Array.map (fun p -> 
-                        SnaphotDescription.App(p.Name, build.Id, build.Version)
-                    )
-                SnaphotDescription.Root(build.Id, apps)       
+        Snapshots.updateSnapshotFile snapshotDescriptionFile build.Id build.Version build.ProjectStructure build.ImpactedProjectStructure
             
-        use writer = snapshotDescriptionFile |> File.CreateText 
-        snapshotDescription.JsonValue.WriteTo(writer, JsonSaveOptions.None)
 
     let createSnapshot configuration build =
         let conf =
@@ -234,25 +205,38 @@ module FB2 =
                 async { return () |> customApp.Publish }
         )
     
-    //todo rework
-    let private deploy rootFolder deployments filterApps =
-        let snapshotInfo =
-            rootFolder
-            |> FileStructure.getSnapshotDescriptionFilePath
-            |> SnaphotDescription.Load
-        let (impactedApplications:SnaphotDescription.App[]) =
-            snapshotInfo |> filterApps
-        
-        //todo bullshit
-        impactedApplications
-            |> Array.map (fun app ->
-                let deployment = deployments |> Array.find (Artifact.withName app.App)
-                let appInfo = { Name=app.App; Version=app.Version; SnapshotId=app.Snapshot}
-                async { return [| appInfo |] |> deployment.Deploy } 
-            )
+    let private deploy (snapshotInfo:SnapshotDescription.Root) deployments =
+        deployments
+        |> Array.map (fun deployment ->
+            let artifactsToDeploy = 
+                deployment.DependsOnArtifacts 
+                |> Array.map (fun artifact ->
+                        snapshotInfo.Artifacts 
+                        |> Array.find (fun artifactSnapshot -> artifactSnapshot.Artifact = artifact.Name)
+                        |> Snapshots.asArtifactSnapshot
+                )
+            async { return artifactsToDeploy |> deployment.Deploy } 
+        )
             
     let deployImpacted rootFolder deployments =
-        deploy rootFolder deployments (fun snapshotInfo -> snapshotInfo.Apps |> Array.filter (fun app -> app.Snapshot = snapshotInfo.Id))
+        let snapshot = 
+            rootFolder
+            |> FileStructure.getSnapshotDescriptionFilePath
+            |> Snapshots.readSnapshotFile
+        let impactedDeployments = 
+            snapshot.Deployments 
+            |> Array.where (fun deploymentSnapshot -> deploymentSnapshot.Snapshot = snapshot.Id)
+            |> Array.map (fun deploymentSnapshot -> deployments |> Array.find (Deployment.withName deploymentSnapshot.Deployment))
+        impactedDeployments
+        |> deploy snapshot
         
     let deployAll rootFolder deployments =
-        deploy rootFolder deployments (fun snapshotInfo -> snapshotInfo.Apps)
+        let snapshot = 
+            rootFolder
+            |> FileStructure.getSnapshotDescriptionFilePath
+            |> Snapshots.readSnapshotFile
+        let impactedDeployments = 
+            snapshot.Deployments 
+            |> Array.map (fun deploymentSnapshot -> deployments |> Array.find (Deployment.withName deploymentSnapshot.Deployment))
+        impactedDeployments
+        |> deploy snapshot

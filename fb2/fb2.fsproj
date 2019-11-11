@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>IncrementalBuild</AssemblyName>
     <RootNamespace>IncrementalBuild</RootNamespace>
@@ -16,6 +16,7 @@
     <Compile Include="Storage/FileSystemSnapshotStorage.fs" />
     <Compile Include="Storage/GCSSnapshotStorage.fs" />
     <Compile Include="Graph.fs" />
+    <Compile Include="Snapshot.fs" />
     <Compile Include="FB2.fs" />
   </ItemGroup>
   <ItemGroup>

@@ -7,19 +7,16 @@ module Application =
     type DotnetApplicationProperties = {
         DependsOn : string array
         Publish : Project -> unit
-        Deploy : ArtifactSnapshot array -> unit
     }
     type CustomApplicationProperties = {
         DependsOn : string array
         Publish : unit -> unit
-        Deploy : ArtifactSnapshot array -> unit
     }
     let dotnet name (parameters:DotnetApplicationProperties) =
         {
             Name = name
             DependsOn = parameters.DependsOn
             Parameters = DotnetApplication {DotnetApplication.Publish = parameters.Publish }
-            Deploy = parameters.Deploy
         }
     let custom name (parameters:CustomApplicationProperties) =
         if parameters.DependsOn |> Array.isEmpty then failwithf "Custom application should have at least one folder dependency for app %s" name
@@ -27,7 +24,6 @@ module Application =
             Name = name
             DependsOn = parameters.DependsOn
             Parameters = CustomApplication { Publish = parameters.Publish }
-            Deploy = parameters.Deploy
         }        
 
 module Graph =
