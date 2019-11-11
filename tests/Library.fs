@@ -6,8 +6,6 @@ open Model
 module Tests =
     open System
     open System.IO
-    open IncrementalBuild
-    open IncrementalBuild
     open NFluent
 
     [<Fact>]

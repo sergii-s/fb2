@@ -58,9 +58,16 @@ module Model =
         Deploy : ArtifactSnapshot array -> unit
     }
     
+    type Deployment = {
+        Name : string
+        DependsOnFolders : string array
+        DependsOnArtifacts : Artifact array
+        Deploy : ArtifactSnapshot array -> unit
+    }
+
     type ProjectStructure = {
         Artifacts : Artifact array
-        Deployments : Artifact array
+        Deployments : Deployment array
         Projects : Project array
         RootFolder : string
     }
