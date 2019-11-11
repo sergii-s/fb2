@@ -93,17 +93,17 @@ module FB2 =
                     snapshotDescriptionFile 
                     |> SnaphotDescription.Load
                 let apps = 
-                    build.ProjectStructure.Applications
-                    |> Array.map (fun app -> 
-                        match build.ImpactedProjectStructure.Applications |> Array.tryFind (fun app' -> app'.Name = app.Name) with
+                    build.ProjectStructure.Artifacts
+                    |> Array.map (fun artifact -> 
+                        match build.ImpactedProjectStructure.Artifacts |> Array.tryFind (Artifact.getName >> (=) artifact.Name) with
                         | Some app -> SnaphotDescription.App(app.Name, build.Id, build.Version)
-                        | None -> oldSnapshotDescription.Apps |> Array.find (fun app' -> app'.App = app.Name)
+                        | None -> oldSnapshotDescription.Apps |> Array.find (fun app' -> app'.App = artifact.Name)
                     )
                     |> Array.ofSeq
                 SnaphotDescription.Root(build.Id, apps)       
             else
                 let apps = 
-                    build.ImpactedProjectStructure.Applications
+                    build.ImpactedProjectStructure.Artifacts
                     |> Array.map (fun p -> 
                         SnaphotDescription.App(p.Name, build.Id, build.Version)
                     )
@@ -159,11 +159,10 @@ module FB2 =
         | Some snapshot ->
             let modifiedFiles = Git.getDiffFiles projectStructure.RootFolder currentCommitId snapshot.Id
             let impactedProjectStructure = modifiedFiles |> Graph.getImpactedProjects projectStructure 
-            printfn "Last snapshot %s from branch %s. Impacted %i of %i projects. Impacted %i of %i applications"
-                snapshot.Id
-                snapshot.Branch
-                impactedProjectStructure.Projects.Length projectStructure.Projects.Length
-                impactedProjectStructure.Applications.Length projectStructure.Applications.Length
+            printfn "Last snapshot %s from branch %s. " snapshot.Id snapshot.Branch
+            printfn "Impacted %i of %i projects. " impactedProjectStructure.Projects.Length projectStructure.Projects.Length
+            printfn "Impacted %i of %i artifacts. " impactedProjectStructure.Artifacts.Length projectStructure.Artifacts.Length
+            printfn "Impacted %i of %i deployments. " impactedProjectStructure.Deployments.Length projectStructure.Deployments.Length
             {
                  Id = currentCommitId
                  Version = version
@@ -225,7 +224,7 @@ module FB2 =
             |> ignore
     
     let publish structure =
-        structure.Applications
+        structure.Artifacts
         |> Array.map (fun app -> 
             match app.Parameters with
             | DotnetApplication dotnetApp ->
@@ -235,6 +234,7 @@ module FB2 =
                 async { return () |> customApp.Publish }
         )
     
+    //todo rework
     let private deploy rootFolder deployments filterApps =
         let snapshotInfo =
             rootFolder
@@ -243,11 +243,12 @@ module FB2 =
         let (impactedApplications:SnaphotDescription.App[]) =
             snapshotInfo |> filterApps
         
+        //todo bullshit
         impactedApplications
             |> Array.map (fun app ->
-                let deployment = deployments |> Array.find (fun (dep:Application) -> dep.Name = app.App)
+                let deployment = deployments |> Array.find (Artifact.withName app.App)
                 let appInfo = { Name=app.App; Version=app.Version; SnapshotId=app.Snapshot}
-                async { return [|appInfo|] |> deployment.Deploy } 
+                async { return [| appInfo |] |> deployment.Deploy } 
             )
             
     let deployImpacted rootFolder deployments =

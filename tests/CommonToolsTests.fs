@@ -1,8 +1,9 @@
-module tests.CommonToolsTests
+namespace fb2.UnitTests
 open IncrementalBuild
 open NFluent
 open Xunit
 
+module CommonToolsTests =
     [<Fact>]
     let ``Path - To relative - from absolute`` () =
         let p = "./folder/file1.txt" |> Pathes.toRelativePath "./"

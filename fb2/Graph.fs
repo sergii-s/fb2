@@ -7,12 +7,12 @@ module Application =
     type DotnetApplicationProperties = {
         DependsOn : string array
         Publish : Project -> unit
-        Deploy : Artifact[] -> unit
+        Deploy : ArtifactSnapshot array -> unit
     }
     type CustomApplicationProperties = {
         DependsOn : string array
         Publish : unit -> unit
-        Deploy : Artifact[] -> unit
+        Deploy : ArtifactSnapshot array -> unit
     }
     let dotnet name (parameters:DotnetApplicationProperties) =
         {
@@ -74,7 +74,7 @@ module Graph =
         with
         | e -> printfn "WARNING: failed to parse %s project file. %A" projectFile e; None
 
-    let readProjectStructure (apps:Application array) dir =
+    let readProjectStructure (artifacts:Artifact array) dir =
         let dotnetProjects = 
             dir
             |> scanProjectFiles 
@@ -99,7 +99,7 @@ module Graph =
             |> Seq.map snd
             |> Array.ofSeq
         
-        apps |> Array.iter (fun app ->
+        artifacts |> Array.iter (fun app ->
             match app.Parameters with
             | DotnetApplication dotnetProjectApplication ->
                 if validProjects |> Array.exists(fun project -> project.Name = app.Name) |> not then
@@ -111,7 +111,8 @@ module Graph =
         )
         
         {
-            Applications = apps
+            Artifacts = artifacts
+            Deployments = [||]
             Projects = validProjects
             RootFolder = dir |> Path.GetFullPath
         }
@@ -140,14 +141,14 @@ module Graph =
         }
             
     let getImpactedProjects structure (files:string array) =
-        let getCorrespondingApplication (project:Project) =
-            structure.Applications |> Array.tryFind (fun app -> app.Name = project.Name)
+        let getCorrespondingArtifact (project:Project) =
+            structure.Artifacts |> Array.tryFind (Artifact.withName project.Name)
         
-        let getCorrespondingDotnetProject (app:Application) =
-            match app.Parameters with
+        let getCorrespondingDotnetProject (artifact:Artifact) =
+            match artifact.Parameters with
             | DotnetApplication _ ->
                 structure.Projects
-                    |> Array.find (fun p -> p.Name = app.Name)
+                    |> Array.find (Project.withName artifact.Name)
                     |> Some
             | _ ->
                 None
@@ -158,31 +159,31 @@ module Graph =
             structure.Projects 
             |> Array.where (fun p -> files |> Seq.exists(fun f -> p.ProjectFolder |> f.StartsWith))
             
-        let directImpactedApplications = 
-            structure.Applications
+        let directImpactedArtifacts = 
+            structure.Artifacts
                 |> Array.where (
-                    fun app -> app.DependsOn 
+                    fun art -> art.DependsOn 
                                 |> Array.map Pathes.ensureDirSeparator 
                                 |> Array.exists(fun dependsOnDir -> files |> Seq.exists (fun f -> dependsOnDir |> f.StartsWith))
                 )
         
         let allImpactedProjects =
-            seq {
-                yield! directImpactedProjects |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
-                yield! directImpactedApplications |> Array.choose getCorrespondingDotnetProject
-            }
+            directImpactedProjects 
+            |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
             |> Seq.distinct
             |> Array.ofSeq
             
-        let allImpactedApplications =
+        let allImpactedArtifacts =
             seq {
-                yield! directImpactedApplications
-                yield! allImpactedProjects |> Array.choose getCorrespondingApplication
+                yield! directImpactedArtifacts
+                yield! allImpactedProjects |> Array.choose getCorrespondingArtifact
             }
-            |> Seq.distinctBy(fun app -> app.Name)
+            |> Seq.distinctBy Artifact.getName
             |> Array.ofSeq    
         {
-            Applications = allImpactedApplications
+            Artifacts = allImpactedArtifacts
+            //todo
+            Deployments = [||]
             Projects = allImpactedProjects
             RootFolder = structure.RootFolder
         }

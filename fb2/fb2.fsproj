@@ -1,12 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>IncrementalBuild</AssemblyName>
     <RootNamespace>IncrementalBuild</RootNamespace>
-    <DisableImplicitFSharpCoreReference>true</DisableImplicitFSharpCoreReference>
+    <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="csproj.xml" />
     <Compile Include="CommonExtensions.fs" />
@@ -15,17 +12,15 @@
     <Compile Include="Pathes.fs" />
     <Compile Include="Zip.fs" />
     <Compile Include="Model.fs" />
-    <Compile Include="SourceControl\Git.fs" />
-    <Compile Include="Storage\FileSystemSnapshotStorage.fs" />
-    <Compile Include="Storage\GCSSnapshotStorage.fs" />
+    <Compile Include="SourceControl/Git.fs" />
+    <Compile Include="Storage/FileSystemSnapshotStorage.fs" />
+    <Compile Include="Storage/GCSSnapshotStorage.fs" />
     <Compile Include="Graph.fs" />
     <Compile Include="FB2.fs" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="FSharp.Core" Version="4.3.4" />
+    <PackageReference Include="FSharp.Core" Version="4.7.0" />
     <PackageReference Include="FSharp.Data" Version="3.0.1" />
     <PackageReference Include="Google.Cloud.Storage.V1" Version="2.3.0" />
   </ItemGroup>
-
 </Project>

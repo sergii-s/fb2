@@ -33,7 +33,8 @@ module Tests =
             Projects = [|
                 Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
             |]
-            Applications = [||]
+            Artifacts = [||]
+            Deployments = [||]
         }
         let files = [|"project1/file1.txt"|]
         let impacted = Graph.getImpactedProjects structure files
@@ -47,7 +48,8 @@ module Tests =
                 Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
                 Project.Create "Project2" "Project1Assembly" OutputType.Lib "project2/project2.csproj" [|"project1/project1.csproj"|] "standard2.0"
             |]
-            Applications = [||]
+            Artifacts = [||]
+            Deployments = [||]
         }
         let files = [|"project1/file1.txt"|]
         let impacted = Graph.getImpactedProjects structure files
@@ -60,56 +62,60 @@ module Tests =
             Projects = [|
                 Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
             |]
-            Applications = [|
+            Artifacts = [|
                 {
-                    Application.Name = "Project1"
+                    Artifact.Name = "Project1"
                     DependsOn = [||]
                     Parameters = { DotnetApplication.Publish = ignore } |> DotnetApplication
                     Deploy = ignore 
                 }
             |]
+            Deployments = [||]
         }
         let files = [|"project1/file1.txt"|]
         let impacted = Graph.getImpactedProjects structure files
         Check.That(impacted.Projects).Not.IsEmpty() |> ignore
-        Check.That(impacted.Applications).Not.IsEmpty() |> ignore
-         
-    [<Fact>]
-    let ``Impacted applications detection - depends on trigger`` () =
-        let structure = {
-            ProjectStructure.RootFolder = "/somefolder"
-            Projects = [|
-                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
-            |]
-            Applications = [|
-                {
-                    Application.Name = "Project1"
-                    DependsOn = [|"somefolder"|]
-                    Parameters = { DotnetApplication.Publish = ignore } |> DotnetApplication
-                    Deploy = ignore
-                }
-            |]
-        }
-        let files = [|"somefolder/file1.txt"|]
-        let impacted = Graph.getImpactedProjects structure files
-        Check.That(impacted.Projects).Not.IsEmpty() |> ignore
-        Check.That(impacted.Applications).Not.IsEmpty() |> ignore   
+        Check.That(impacted.Artifacts).Not.IsEmpty() |> ignore
+
+    //todo : this should be deployment test     
+    // [<Fact>]
+    // let ``Impacted applications detection - depends on trigger`` () =
+    //     let structure = {
+    //         ProjectStructure.RootFolder = "/somefolder"
+    //         Projects = [|
+    //             PArtifact"Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
+    //         |]
+    //         Artifacts = [|
+    //             {
+    //                 Application.Name = "Project1"
+    //                 DependsOn = [|"somefolder"|]
+    //                 Parameters = { DotnetApplication.Publish = ignore } |> DotnetApplication
+    //                 Deploy = ignore
+    //             }
+    //         |]
+    //         Deployments = [||]
+    //     }
+    //     let files = [|"somefolder/file1.txt"|]
+    //     let impacted = Graph.getImpactedProjects structure files
+    //     Check.That(impacted.Projects).Not.IsEmpty() |> ignore
+    //     Check.That(impacted.Artifacts).Not.IsEmpty() |> ignore   
         
     [<Fact>]
     let ``Impacted applications detection - custom app - base folder trigger`` () =
         let structure = {
             ProjectStructure.RootFolder = "/somefolder"
             Projects = [||]
-            Applications = [|
+            Artifacts = [|
                 {
-                    Application.Name = "Project1"
+                    Artifact.Name = "Project1"
                     DependsOn = [|"somefolder"|]
                     Parameters = { CustomApplication.Publish = ignore } |> CustomApplication
                     Deploy = ignore
                 }
             |]
+            Deployments = [||]
         }
         let files = [|"somefolder/file1.txt"|]
         let impacted = Graph.getImpactedProjects structure files
         Check.That(impacted.Projects).IsEmpty() |> ignore
-        Check.That(impacted.Applications).Not.IsEmpty() |> ignore   
+        Check.That(impacted.Artifacts).Not.IsEmpty() |> ignore   

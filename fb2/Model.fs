@@ -33,7 +33,7 @@ module Model =
                 TargetFramework = framework
             }
     
-    type Artifact = {
+    type ArtifactSnapshot = {
         Name : string
         Version : string
         SnapshotId : string
@@ -51,16 +51,24 @@ module Model =
         | DotnetApplication of DotnetApplication
         | CustomApplication of CustomApplication
     
-    type Application = {
+    type Artifact = {
         Name : string
         DependsOn : string array
         Parameters : ApplicationType
-        Deploy : Artifact array -> unit
+        Deploy : ArtifactSnapshot array -> unit
     }
     
     type ProjectStructure = {
-        Applications : Application array
+        Artifacts : Artifact array
+        Deployments : Artifact array
         Projects : Project array
         RootFolder : string
     }
     
+    module Project = 
+        let getName (project:Project) = project.Name
+        let withName name = getName >> (=) name
+        
+    module Artifact = 
+        let getName (artifact:Artifact) = artifact.Name
+        let withName name = getName >> (=) name
