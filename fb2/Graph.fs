@@ -29,6 +29,7 @@ module Application =
 module Graph =
     open Pathes
     open FSharp.Data
+    open Model
     
     type CsFsProject = XmlProvider<"csproj.xml", SampleIsList= true, EmbeddedResource="IncrementalBuild, csproj.xml">
     
@@ -135,7 +136,7 @@ module Graph =
             yield project   
             yield! getDependentProjects structure project
         }
-            
+    
     let getImpactedProjects structure (files:string array) =
         let getCorrespondingArtifact (project:Project) =
             structure.Artifacts |> Array.tryFind (Artifact.withName project.Name)
@@ -149,23 +150,24 @@ module Graph =
             | _ ->
                 None
             
-        let directorySeparatorString = Path.DirectorySeparatorChar.ToString()
-        
+        let anyDirImpacted (dirs:string array) =
+            dirs 
+            |> Array.map Pathes.ensureDirSeparator 
+            |> Array.exists(fun dependsOnDir -> files |> Array.exists (fun f -> dependsOnDir |> f.StartsWith))
+            
         let directImpactedProjects =
             structure.Projects 
-            |> Array.where (fun p -> files |> Seq.exists(fun f -> p.ProjectFolder |> f.StartsWith))
+            |> Array.where (fun project -> [| project.ProjectFolder |] |> anyDirImpacted)
             
         let directImpactedArtifacts = 
             structure.Artifacts
-                |> Array.where (
-                    fun art -> art.DependsOn 
-                                |> Array.map Pathes.ensureDirSeparator 
-                                |> Array.exists(fun dependsOnDir -> files |> Seq.exists (fun f -> dependsOnDir |> f.StartsWith))
-                )
+                |> Array.where (fun artifact -> artifact.DependsOn |> anyDirImpacted)
         
         let allImpactedProjects =
-            directImpactedProjects 
-            |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
+            seq {
+                yield! directImpactedProjects |> Seq.collect (fun p -> p |> getProjectWithDependentProjects structure)
+                yield! directImpactedArtifacts |> Array.choose getCorrespondingDotnetProject
+            }
             |> Seq.distinct
             |> Array.ofSeq
             
@@ -175,11 +177,32 @@ module Graph =
                 yield! allImpactedProjects |> Array.choose getCorrespondingArtifact
             }
             |> Seq.distinctBy Artifact.getName
-            |> Array.ofSeq    
+            |> Array.ofSeq
+            
+        let impactedDeployments = 
+            seq {
+                let directImpactedDeployments =
+                    structure.Deployments 
+                    |> Array.where (fun deployment -> deployment.DependsOnFolders |> anyDirImpacted) 
+                let artifactNames = allImpactedArtifacts |> Array.map Artifact.getName |> Set.ofArray
+                let artifactImpactedDeployments =
+                    structure.Deployments
+                    |> Array.where (fun deployment -> 
+                        deployment.DependsOnArtifacts 
+                        |> Array.map Artifact.getName 
+                        |> Set.ofArray 
+                        |> Set.intersect artifactNames 
+                        |> Set.isEmpty 
+                        |> not
+                    )
+                yield! directImpactedDeployments
+                yield! artifactImpactedDeployments
+            }
+            |> Seq.distinctBy Deployment.getName
+            |> Array.ofSeq
         {
             Artifacts = allImpactedArtifacts
-            //todo
-            Deployments = [||]
+            Deployments = impactedDeployments
             Projects = allImpactedProjects
             RootFolder = structure.RootFolder
         }
