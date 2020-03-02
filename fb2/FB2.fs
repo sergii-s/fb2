@@ -17,6 +17,7 @@ type BuildParameters = {
     BaseBranches : string list
     SourceControlProvider : SourceControlProvider
     Storage : SnaphotStorage
+    SnapshotAssemblies : bool
     MaxCommitsCheck : int
 }
     
@@ -79,6 +80,7 @@ module FB2 =
             |> sprintf "%s/.fb2"
             |> SnaphotStorage.FileSystem 
         MaxCommitsCheck = 20
+        SnapshotAssemblies = true
         BaseBranches = []
     }
     
@@ -120,14 +122,21 @@ module FB2 =
         let zipTemporaryPath = (sprintf "%s%s.zip" (Path.GetTempPath()) build.Id)
         printfn "Temporary zip %s" zipTemporaryPath
         build |> updateSnapshotDescription
-        let zipFile =
-            build.ProjectStructure.Projects
-            |> Seq.collect (fun p -> seq {
-                yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
-                yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
-            })
-            |> Seq.append [build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath]
-            |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
+    
+        let assemblies = 
+            if build.Parameters.SnapshotAssemblies then
+                build.ProjectStructure.Projects
+                |> Seq.collect (fun p -> seq {
+                    yield! Directory.EnumerateFiles(sprintf "%s/bin/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
+                    yield! Directory.EnumerateFiles(sprintf "%s/obj/%s/%s/" (Pathes.combine build.ProjectStructure.RootFolder p.ProjectFolder) conf p.TargetFramework, "*.*")
+                })
+            else
+                Seq.empty
+        
+        assemblies
+        |> Seq.append [build.ProjectStructure.RootFolder |> FileStructure.getSnapshotDescriptionFilePath]
+        |> Zip.zip build.ProjectStructure.RootFolder zipTemporaryPath
+        |> ignore
 
         SnapshotStorage.saveSnapshot build.Parameters.Storage {Id = build.Id; Branch = build.Branch} zipTemporaryPath
 
