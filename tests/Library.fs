@@ -31,7 +31,7 @@ module Tests =
         let structure = {
             ProjectStructure.RootFolder = "/somefolder"
             Projects = [|
-                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
+                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0" true
             |]
             Applications = [||]
         }
@@ -44,8 +44,8 @@ module Tests =
         let structure = {
             ProjectStructure.RootFolder = "/somefolder"
             Projects = [|
-                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
-                Project.Create "Project2" "Project1Assembly" OutputType.Lib "project2/project2.csproj" [|"project1/project1.csproj"|] "standard2.0"
+                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0" true
+                Project.Create "Project2" "Project1Assembly" OutputType.Lib "project2/project2.csproj" [|"project1/project1.csproj"|] "standard2.0" true
             |]
             Applications = [||]
         }
@@ -58,7 +58,7 @@ module Tests =
         let structure = {
             ProjectStructure.RootFolder = "/somefolder"
             Projects = [|
-                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
+                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0" true
             |]
             Applications = [|
                 {
@@ -79,7 +79,7 @@ module Tests =
         let structure = {
             ProjectStructure.RootFolder = "/somefolder"
             Projects = [|
-                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0"
+                Project.Create "Project1" "Project1Assembly" OutputType.Lib "project1/project1.csproj" [||] "standard2.0" true
             |]
             Applications = [|
                 {

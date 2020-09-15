@@ -21,8 +21,9 @@ module Model =
         ProjectFolder : string
         ProjectReferences : string array
         TargetFramework : string
+        IsPublishable : bool
     } with 
-        static member Create name assemblyName output projectPath references framework =
+        static member Create name assemblyName output projectPath references framework isPublishable =
             {
                 Project.Name = name
                 AssemblyName = assemblyName
@@ -31,6 +32,7 @@ module Model =
                 ProjectFolder = projectPath |> Path.GetDirectoryName |> Pathes.ensureDirSeparator
                 ProjectReferences = references
                 TargetFramework = framework
+                IsPublishable = isPublishable
             }
     
     type Artifact = {

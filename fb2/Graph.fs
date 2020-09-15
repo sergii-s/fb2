@@ -69,7 +69,8 @@ module Graph =
             let assemblyName = project.PropertyGroups |> Array.tryPick (fun x -> x.AssemblyName) |> Option.defaultValue projectName
             let framework = ( project.PropertyGroups |> Array.head ).TargetFramework
             let projectFile = projectFile |> Pathes.toRelativePath rootFolder
-            Project.Create projectName assemblyName outputType projectFile projectReferences framework
+            let isPublishable = project.PropertyGroups |> Array.tryPick (fun x -> x.IsPublishable) |> Option.defaultValue true
+            Project.Create projectName assemblyName outputType projectFile projectReferences framework isPublishable
                 |> Some
         with
         | e -> printfn "WARNING: failed to parse %s project file. %A" projectFile e; None
@@ -92,6 +93,20 @@ module Graph =
         invalidProjects
             |> Map.iter ( fun projectFile project -> printfn "WARNING: broken dependencies in %s project file. Ignoring project" projectFile)
         
+        let notPublishableProjects =
+            dotnetProjects
+            |> Map.filter (fun _ project ->
+                apps
+                    |> Array.exists (fun app ->
+                                      match app.Parameters with
+                                      | DotnetApplication _ -> app.Name = project.Name
+                                      | _ -> false )
+                    |> not 
+            )
+
+        notPublishableProjects
+            |> Map.iter (fun projectFile project -> if project.IsPublishable then printfn "WARNING: not publishable project %s will be published. Add <IsPublishable>false</IsPublishable> property" projectFile else ())
+            
         let validProjects = 
             dotnetProjects
             |> Map.filter (fun projectFile project -> invalidProjects |> Map.containsKey projectFile |> not)

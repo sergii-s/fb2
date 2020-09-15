@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>MyAssembly</AssemblyName>
     <TargetFramework>netcoreapp2.2</TargetFramework>
+    <IsPublishable>false</IsPublishable>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.fs" />
