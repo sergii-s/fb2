@@ -9,6 +9,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{0DD45222
 	ProjectSection(SolutionItems) = preProject
 		build.fsx = build.fsx
 		azure-pipelines.yml = azure-pipelines.yml
+		fake.sh = fake.sh
+		build.fsx.lock = build.fsx.lock
+		dotnet-fake.csproj = dotnet-fake.csproj
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5C3B77DA-8DEE-40BC-8E53-1E19A7872BF2}"
