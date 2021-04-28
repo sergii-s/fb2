@@ -6,13 +6,13 @@ module Model =
         Id : string
         Branch : string
     }
-    
+
     type OutputType = Exe | Lib
 //    type FolderPath = private FolderPath of string
-//    module FolderPath = 
-//        let create path = 
-//            
-            
+//    module FolderPath =
+//        let create path =
+//
+
     type Project = {
         Name : string
         AssemblyName : string
@@ -20,10 +20,11 @@ module Model =
         ProjectPath : string
         ProjectFolder : string
         ProjectReferences : string array
+        ExternalReferences : string array
         TargetFramework : string
         IsPublishable : bool
-    } with 
-        static member Create name assemblyName output projectPath references framework isPublishable =
+    } with
+        static member Create name assemblyName output projectPath references externalReferences framework isPublishable =
             {
                 Project.Name = name
                 AssemblyName = assemblyName
@@ -31,38 +32,39 @@ module Model =
                 ProjectPath = projectPath
                 ProjectFolder = projectPath |> Path.GetDirectoryName |> Pathes.ensureDirSeparator
                 ProjectReferences = references
+                ExternalReferences = externalReferences
                 TargetFramework = framework
                 IsPublishable = isPublishable
             }
-    
+
     type Artifact = {
         Name : string
         Version : string
         SnapshotId : string
     }
-    
+
     type DotnetApplication  = {
         Publish : Project -> unit
     }
-    
+
     type CustomApplication  = {
         Publish : unit -> unit
     }
-    
+
     type ApplicationType =
         | DotnetApplication of DotnetApplication
         | CustomApplication of CustomApplication
-    
+
     type Application = {
         Name : string
         DependsOn : string array
         Parameters : ApplicationType
         Deploy : Artifact array -> unit
     }
-    
+
     type ProjectStructure = {
         Applications : Application array
         Projects : Project array
         RootFolder : string
     }
-    
+
