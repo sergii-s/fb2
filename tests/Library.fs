@@ -1,20 +1,19 @@
 ﻿namespace fb2.UnitTests
+
 open IncrementalBuild
 open Xunit
 open Model
 
 module Tests =
-    open System
     open System.IO
-    open IncrementalBuild
-    open IncrementalBuild
     open NFluent
 
     [<Fact>]
     let ``Should properly read project structure`` () =
         let repoRelativePath = "../../../../"
         let repoAbsolutePath = Path.Combine(Directory.GetCurrentDirectory(), repoRelativePath) |> Path.GetFullPath
-        let structure = Graph.readProjectStructure [||] repoRelativePath
+        let projects = repoRelativePath |> DotnetProjectParser.parseDotnetProjects
+        let structure = Graph.readProjectStructure repoRelativePath [||] projects
         let project name = structure.Projects |> Array.find (fun p -> p.Name = name)
 
         let folders =

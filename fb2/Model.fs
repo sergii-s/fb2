@@ -8,10 +8,6 @@ module Model =
     }
 
     type OutputType = Exe | Lib
-//    type FolderPath = private FolderPath of string
-//    module FolderPath =
-//        let create path =
-//
 
     type Project = {
         Name : string
@@ -67,4 +63,12 @@ module Model =
         Projects : Project array
         RootFolder : string
     }
+
+    type BuildInfo = {
+        Structure : ProjectStructure
+        CommitIds : string list
+        CurrentCommitId : string
+        Branch : string
+    }
+
 

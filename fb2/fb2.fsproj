@@ -18,6 +18,7 @@
     <Compile Include="Storage\FileSystemSnapshotStorage.fs" />
     <Compile Include="Storage\GCSSnapshotStorage.fs" />
     <Compile Include="Graph.fs" />
+    <Compile Include="DotnetProjectParser.fs" />
     <Compile Include="FB2.fs" />
   </ItemGroup>
 
