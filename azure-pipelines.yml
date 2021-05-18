@@ -18,5 +18,6 @@ steps:
 - script: ./fake.sh build -t Nuget-publish
   displayName: 'Publish nuget'
   env:
-    NUGET_KEY: $(nugetKey)
+    NUGET_KEY: $(NUGET_KEY)
+    NUGET_SOURCE: $(NUGET_SOURCE)
     BUILD_NUMBER: $(Build.BuildNumber)
