@@ -324,3 +324,4 @@ AntVoice.Services/AntVoice.Services.HtmlToImageGenerator/AntVoice.NodeTs.ImageGe
 .fake
 SolutionInfo.cs
 coverage.opencover.xml
+artifacts/
