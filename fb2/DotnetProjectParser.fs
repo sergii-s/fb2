@@ -8,13 +8,11 @@ module DotnetProjectParser =
 
     type CsFsProject = XmlProvider<"csproj.xml", SampleIsList= true, EmbeddedResource="IncrementalBuild, csproj.xml">
 
-    let rec private scanProjectFiles dir = seq {
-        yield! Directory.GetFiles(dir, "*.csproj") |> Array.map Path.GetFullPath
-        yield! Directory.GetFiles(dir, "*.fsproj") |> Array.map Path.GetFullPath
-        yield!
-            Directory.GetDirectories(dir)
-            |> Seq.collect scanProjectFiles
+    let private scanProjectFiles dir = seq {
+        yield! Directory.GetFiles(dir, "*.csproj", SearchOption.AllDirectories) |> Array.map Path.GetFullPath
+        yield! Directory.GetFiles(dir, "*.fsproj", SearchOption.AllDirectories) |> Array.map Path.GetFullPath
     }
+
     let private parseProjectFile rootFolder (projectFile : string) =
         try
             let project = projectFile |> CsFsProject.Load
