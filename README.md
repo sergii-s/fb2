@@ -1,4 +1,4 @@
-# AntVoiceBuild (from ssergi IncrementalBuild)
+# AntVoiceBuild (from [sergii-s](https://github.com/sergii-s) IncrementalBuild)
 
 Build Process to only build and deploy changed projects in a single repository environment.
 
