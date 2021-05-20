@@ -10,11 +10,18 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
+- script: ./add-source.sh
+  displayName: 'Add NuGet source repository'
+  env:
+    USERNAME: $(USERNAME)
+    PASSWORD: $(PASSWORD)
+  condition: ne(variables['USERNAME'], '')
+
 - script: ./fake.sh build
   displayName: 'Build and test solution'
   env:
     BUILD_NUMBER: $(Build.BuildNumber)
-    
+
 - script: ./fake.sh build -t Nuget-publish
   displayName: 'Publish nuget'
   env:
