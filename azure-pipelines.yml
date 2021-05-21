@@ -10,13 +10,6 @@ pool:
   vmImage: 'ubuntu-latest'
 
 steps:
-- script: ./add-source.sh
-  displayName: 'Add NuGet source repository'
-  env:
-    USERNAME: $(USERNAME)
-    PASSWORD: $(PASSWORD)
-  condition: ne(variables['USERNAME'], '')
-
 - script: ./fake.sh build
   displayName: 'Build and test solution'
   env:
