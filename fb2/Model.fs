@@ -7,12 +7,9 @@ module Model =
         Branch : string
     }
 
-    type OutputType = Exe | Lib
-
     type Project = {
         Name : string
         AssemblyName : string
-        OutputType : OutputType
         ProjectPath : string
         ProjectFolder : string
         ProjectReferences : string array
@@ -20,11 +17,10 @@ module Model =
         TargetFramework : string
         IsPublishable : bool
     } with
-        static member Create name assemblyName output projectPath references externalReferences framework isPublishable =
+        static member Create name assemblyName projectPath references externalReferences framework isPublishable =
             {
                 Project.Name = name
                 AssemblyName = assemblyName
-                OutputType = output
                 ProjectPath = projectPath
                 ProjectFolder = projectPath |> Path.GetDirectoryName |> Pathes.ensureDirSeparator
                 ProjectReferences = references

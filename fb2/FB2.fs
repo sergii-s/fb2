@@ -1,4 +1,5 @@
 ﻿namespace IncrementalBuild
+
 open System
 open System.IO
 open FSharp.Data
@@ -70,6 +71,7 @@ module FileStructure =
 
 module FB2 =
     open DotnetProjectParser
+    open RustProjectParser
 
     let private defaultParameters = {
         Repository = "."
@@ -150,6 +152,7 @@ module FB2 =
     let getBuildInfo parameters projects applications =
         let projects = seq {
             yield! parameters.Repository |> parseDotnetProjects
+            yield! parameters.Repository |> parseRustProjects
             yield! projects
         }
         let projectStructure =
@@ -169,7 +172,7 @@ module FB2 =
             Branch = branch
         }
 
-    let getIncrementalBuild version projects parametersBuilder applications =
+    let getIncrementalBuild version parametersBuilder projects applications =
         let parameters = defaultParameters |> parametersBuilder
         let buildInfo =
             applications
@@ -183,9 +186,10 @@ module FB2 =
         | Some snapshot ->
             let modifiedFiles = Git.getDiffFiles buildInfo.Structure.RootFolder buildInfo.CurrentCommitId snapshot.Id
             let impactedProjectStructure = modifiedFiles |> getImpactedProjects buildInfo.Structure
-            printfn "Last snapshot %s from branch %s. Impacted %i of %i projects. Impacted %i of %i applications"
+            printfn "Last snapshot %s from branch %s. Modified files: %i. Impacted %i of %i projects. Impacted %i of %i applications"
                 snapshot.Id
                 snapshot.Branch
+                modifiedFiles.Length
                 impactedProjectStructure.Projects.Length buildInfo.Structure.Projects.Length
                 impactedProjectStructure.Applications.Length buildInfo.Structure.Applications.Length
             {
@@ -226,7 +230,6 @@ module FB2 =
              ImpactedProjectStructure = buildInfo.Structure
              Parameters = parameters
         }
-
 
     let createView name folder projects =
         name

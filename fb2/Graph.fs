@@ -47,33 +47,29 @@ module Graph =
         invalidProjects
             |> Map.iter ( fun projectFile project -> printfn "WARNING: broken dependencies in %s project file. Ignoring project" projectFile)
 
-        let notPublishableProjects =
-            projects
-            |> Map.filter (fun _ project ->
-                apps
-                    |> Array.exists (fun app ->
-                                      match app.Parameters with
-                                      | DotnetApplication _ -> app.Name = project.Name
-                                      | _ -> false )
-                    |> not
-            )
-
-        notPublishableProjects
-            |> Map.iter (fun projectFile project -> if project.IsPublishable then printfn "WARNING: not publishable project %s will be published. Add <IsPublishable>false</IsPublishable> property" projectFile else ())
+        projects
+        |> Map.filter (fun _ project ->
+            apps
+                |> Array.exists (fun app ->
+                                  match app.Parameters with
+                                  | DotnetApplication _ -> app.Name = project.Name
+                                  | _ -> false )
+                |> not
+        )
+        |> Map.iter (fun projectFile project -> if project.IsPublishable then printfn "WARNING: not publishable project %s will be published. Add <IsPublishable>false</IsPublishable> property" projectFile else ())
 
         let validProjects =
             projects
-            |> Map.filter (fun projectFile project -> invalidProjects |> Map.containsKey projectFile |> not)
-            |> Map.toSeq
-            |> Seq.map snd
-            |> Array.ofSeq
+            |> Map.filter (fun projectFile _ -> invalidProjects |> Map.containsKey projectFile |> not)
+            |> Map.toArray
+            |> Array.map snd
 
         apps |> Array.iter (fun app ->
             match app.Parameters with
-            | DotnetApplication dotnetProjectApplication ->
+            | DotnetApplication _ ->
                 if validProjects |> Array.exists(fun project -> project.Name = app.Name) |> not then
                     failwithf "Application %s not found in project structure" app.Name
-            | CustomApplication customApplication ->
+            | CustomApplication _ ->
                 for dependsDir in app.DependsOn do
                     if dependsDir |> Pathes.combine dir |> Directory.Exists |> not then
                         failwithf "Application %s not found in the repository folder" app.Name
@@ -89,10 +85,11 @@ module Graph =
         yield! project.ProjectReferences |> Seq.map (fun p -> projectMap.[p])
         yield! project.ProjectReferences |> Seq.collect (fun p -> projectMap.[p] |> getReferencedProjects projectMap)
     }
-    let rec getDependentProjects structure project = seq {
+    let rec getDependentProjects structure (project: Project) = seq {
         let dependentProjects =
             structure.Projects
-            |> Seq.filter (fun p -> p.ProjectReferences |> Array.contains project.ProjectPath)
+            |> Seq.filter (fun p -> p.ProjectReferences
+                                    |> Array.contains project.ProjectPath)
         yield! dependentProjects
         yield! dependentProjects |> Seq.collect (getDependentProjects structure)
     }
@@ -109,6 +106,7 @@ module Graph =
         }
 
     let getImpactedProjects structure (files:string array) =
+
         let getCorrespondingApplication (project:Project) =
             structure.Applications |> Array.tryFind (fun app -> app.Name = project.Name)
 

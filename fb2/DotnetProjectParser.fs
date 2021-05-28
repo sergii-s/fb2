@@ -13,18 +13,10 @@ module DotnetProjectParser =
         yield! Directory.GetFiles(dir, "*.fsproj", SearchOption.AllDirectories) |> Array.map Path.GetFullPath
     }
 
-    let private parseProjectFile rootFolder (projectFile : string) =
+    let parseProjectFile rootFolder (projectFile : string) =
         try
             let project = projectFile |> CsFsProject.Load
-            let outputType =
-                let asString =
-                    project.PropertyGroups
-                    |> Seq.choose (fun x -> x.OutputType)
-                    |> Seq.tryHead
-                    |> Option.map String.toLowerInvariant
-                match asString with
-                | Some "exe" -> Exe
-                | _ -> Lib
+
             let projectReferences =
                 project.ItemGroups
                 |> Seq.collect (fun x -> x.ProjectReferences)
@@ -37,9 +29,9 @@ module DotnetProjectParser =
 
             let externalReferences =
                 project.ItemGroups
-                |> Seq.choose (fun group -> group.Content)
+                |> Seq.collect (fun group -> group.Contents)
                 |> Seq.map (fun x ->
-                    { Path = x.Include; RelativeFrom = projectFile |> Path.GetDirectoryName}
+                    { Path = x.Include; RelativeFrom = projectFile |> Path.GetDirectoryName }
                     |> toAbsolutePath
                     |> toRelativePath rootFolder
                 )
@@ -50,7 +42,7 @@ module DotnetProjectParser =
             let framework = ( project.PropertyGroups |> Array.head ).TargetFramework
             let projectFile = projectFile |> toRelativePath rootFolder
             let isPublishable = project.PropertyGroups |> Array.tryPick (fun x -> x.IsPublishable) |> Option.defaultValue true
-            Project.Create projectName assemblyName outputType projectFile projectReferences externalReferences framework isPublishable
+            Project.Create projectName assemblyName projectFile projectReferences externalReferences framework isPublishable
                 |> Some
         with
         | e -> printfn "WARNING: failed to parse %s project file. %A" projectFile e; None
